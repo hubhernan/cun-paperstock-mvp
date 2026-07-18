@@ -1,0 +1,41 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const client_1 = require("@prisma/client");
+const http_1 = require("http");
+const socket_1 = require("./socket");
+const auth_1 = __importDefault(require("./routes/auth"));
+const tipos_papel_1 = __importDefault(require("./routes/tipos-papel"));
+const almacenes_1 = __importDefault(require("./routes/almacenes"));
+const lotes_1 = __importDefault(require("./routes/lotes"));
+const areas_1 = __importDefault(require("./routes/areas"));
+const perifericos_1 = __importDefault(require("./routes/perifericos"));
+const movimientos_1 = __importDefault(require("./routes/movimientos"));
+const asignaciones_1 = __importDefault(require("./routes/asignaciones"));
+const dashboard_1 = __importDefault(require("./routes/dashboard"));
+const auditoria_1 = __importDefault(require("./routes/auditoria"));
+const app = (0, express_1.default)();
+const prisma = new client_1.PrismaClient();
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
+app.use('/api/auth', auth_1.default);
+app.use('/api/tipos-papel', tipos_papel_1.default);
+app.use('/api/almacenes', almacenes_1.default);
+app.use('/api/lotes', lotes_1.default);
+app.use('/api/areas', areas_1.default);
+app.use('/api/perifericos', perifericos_1.default);
+app.use('/api/movimientos', movimientos_1.default);
+app.use('/api/asignaciones', asignaciones_1.default);
+app.use('/api/dashboard', dashboard_1.default);
+app.use('/api/auditoria', auditoria_1.default);
+const server = (0, http_1.createServer)(app);
+(0, socket_1.initSocket)(server);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+//# sourceMappingURL=index.js.map

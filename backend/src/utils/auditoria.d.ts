@@ -1,0 +1,2 @@
+export declare const registrarAuditoria: (usuarioId: string, accion: string, entidad: string, entidadId?: string, detalles?: string, ip?: string) => Promise<void>;
+//# sourceMappingURL=auditoria.d.ts.map
