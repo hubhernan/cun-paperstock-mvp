@@ -4,9 +4,9 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Iniciando seed de base de datos...');
+  console.log('Iniciando seed de base de datos ampliado...');
 
-  // Crear roles
+  // 1. Crear roles
   const rolesData = [
     { nombre: 'Admin', descripcion: 'Administrador del sistema' },
     { nombre: 'Supervisor', descripcion: 'Supervisor de almacén' },
@@ -23,13 +23,14 @@ async function main() {
     });
     roles.push(rol);
   }
-  console.log('Roles creados/verificados.');
+  console.log('Roles listos.');
 
-  // Crear usuario admin por defecto
-  const adminRole = roles.find(r => r.nombre === 'Admin');
+  // 2. Crear usuario admin por defecto
+  const adminRole = roles.find((r) => r.nombre === 'Admin');
+  let adminUser = null;
   if (adminRole) {
     const passwordHash = await bcrypt.hash('admin123', 10);
-    await prisma.usuario.upsert({
+    adminUser = await prisma.usuario.upsert({
       where: { email: 'admin@cun.mx' },
       update: {},
       create: {
@@ -39,11 +40,11 @@ async function main() {
         rolId: adminRole.id,
       },
     });
-    console.log('Usuario admin creado (admin@cun.mx / admin123).');
+    console.log('Usuario admin listo.');
   }
 
-  // Opcional: Crear tipos de papel básicos de prueba
-  await prisma.tipoPapel.upsert({
+  // 3. Crear Tipos de Papel
+  const tipoPapel1 = await prisma.tipoPapel.upsert({
     where: { codigo: 'BT-001' },
     update: {},
     create: {
@@ -61,7 +62,7 @@ async function main() {
     },
   });
 
-  await prisma.tipoPapel.upsert({
+  const tipoPapel2 = await prisma.tipoPapel.upsert({
     where: { codigo: 'BP-001' },
     update: {},
     create: {
@@ -78,8 +79,170 @@ async function main() {
       puntoReorden: 50,
     },
   });
+  console.log('Catálogo de papel listo.');
 
-  console.log('Tipos de papel de muestra creados.');
+  // 4. Crear Almacenes
+  const almacenCentral = await prisma.almacen.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      nombre: 'Almacén Central',
+      ubicacion: 'Sótano Terminal 2',
+      capacidad: 'Grande',
+    },
+  });
+
+  const almacenT3 = await prisma.almacen.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      nombre: 'Almacén Terminal 3',
+      ubicacion: 'Planta Baja T3',
+      capacidad: 'Mediana',
+    },
+  });
+  console.log('Almacenes listos.');
+
+  // 5. Crear Áreas y Periféricos
+  const areaCheckIn = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      nombre: 'Mostradores Check-in',
+      terminal: 'Terminal 2',
+      zona: 'Público',
+    },
+  });
+
+  const areaAbordaje = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000004' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000004',
+      nombre: 'Salas de Abordaje',
+      terminal: 'Terminal 3',
+      zona: 'Estéril',
+    },
+  });
+
+  await prisma.periferico.upsert({
+    where: { identificadorUnico: 'PRN-CUN-T2-001' },
+    update: {},
+    create: {
+      identificadorUnico: 'PRN-CUN-T2-001',
+      marca: 'Access-IS',
+      modelo: 'BGR750',
+      areaId: areaCheckIn.id,
+      estadoOperativo: 'ACTIVO',
+    },
+  });
+
+  await prisma.periferico.upsert({
+    where: { identificadorUnico: 'PRN-CUN-T3-002' },
+    update: {},
+    create: {
+      identificadorUnico: 'PRN-CUN-T3-002',
+      marca: 'Custom',
+      modelo: 'KPM302H',
+      areaId: areaAbordaje.id,
+      estadoOperativo: 'MANTENIMIENTO',
+    },
+  });
+  console.log('Áreas y Periféricos listos.');
+
+  // 6. Crear Lotes y Stock
+  const lote1 = await prisma.lote.upsert({
+    where: { tipoPapelId_numeroLote: { tipoPapelId: tipoPapel1.id, numeroLote: 'LOTE-2026-001' } },
+    update: {},
+    create: {
+      tipoPapelId: tipoPapel1.id,
+      numeroLote: 'LOTE-2026-001',
+      fechaRecepcion: new Date(),
+    },
+  });
+
+  await prisma.stockAlmacen.upsert({
+    where: { almacenId_tipoPapelId: { almacenId: almacenCentral.id, tipoPapelId: tipoPapel1.id } },
+    update: { cantidadActual: 350 },
+    create: {
+      almacenId: almacenCentral.id,
+      tipoPapelId: tipoPapel1.id,
+      cantidadActual: 350,
+    },
+  });
+
+  await prisma.stockAlmacen.upsert({
+    where: { almacenId_tipoPapelId: { almacenId: almacenCentral.id, tipoPapelId: tipoPapel2.id } },
+    update: { cantidadActual: 120 },
+    create: {
+      almacenId: almacenCentral.id,
+      tipoPapelId: tipoPapel2.id,
+      cantidadActual: 120,
+    },
+  });
+
+  await prisma.stockAlmacen.upsert({
+    where: { almacenId_tipoPapelId: { almacenId: almacenT3.id, tipoPapelId: tipoPapel1.id } },
+    update: { cantidadActual: 45 },
+    create: {
+      almacenId: almacenT3.id,
+      tipoPapelId: tipoPapel1.id,
+      cantidadActual: 45,
+    },
+  });
+  console.log('Stock y Lotes listos.');
+
+  // 7. Crear Movimientos y Auditoría si tenemos usuario
+  if (adminUser) {
+    // Solo insertamos movimientos si no existen (simplificado, contamos movimientos)
+    const movsCount = await prisma.movimientoInventario.count();
+    if (movsCount === 0) {
+      await prisma.movimientoInventario.createMany({
+        data: [
+          {
+            tipoPapelId: tipoPapel1.id,
+            loteId: lote1.id,
+            almacenDestinoId: almacenCentral.id,
+            tipoMovimiento: 'ENTRADA',
+            cantidad: 500,
+            usuarioId: adminUser.id,
+            comentarios: 'Recepcion inicial de proveedor',
+          },
+          {
+            tipoPapelId: tipoPapel1.id,
+            almacenOrigenId: almacenCentral.id,
+            almacenDestinoId: almacenT3.id,
+            tipoMovimiento: 'TRANSFERENCIA',
+            cantidad: 50,
+            usuarioId: adminUser.id,
+            comentarios: 'Reabastecimiento Terminal 3',
+          },
+          {
+            tipoPapelId: tipoPapel2.id,
+            almacenOrigenId: almacenCentral.id,
+            tipoMovimiento: 'SALIDA',
+            cantidad: 10,
+            usuarioId: adminUser.id,
+            comentarios: 'Uso operativo en mostradores',
+          },
+        ],
+      });
+
+      await prisma.auditoriaAcciones.createMany({
+        data: [
+          { usuarioId: adminUser.id, accion: 'LOGIN', entidad: 'Auth', detalles: 'Inicio de sesión exitoso' },
+          { usuarioId: adminUser.id, accion: 'CREATE', entidad: 'Movimiento', detalles: 'Ingresó 500 unidades' },
+          { usuarioId: adminUser.id, accion: 'UPDATE', entidad: 'Periferico', detalles: 'Cambió estado a Mantenimiento' },
+        ],
+      });
+      console.log('Movimientos y Auditoria de prueba listos.');
+    }
+  }
+
+  console.log('¡Proceso de Seed completado con éxito!');
 }
 
 main()
