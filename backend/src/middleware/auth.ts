@@ -14,12 +14,12 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
   if (!token) return res.status(401).json({ success: false, message: 'No se proporcionó token' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'super-secret-cun-key-change-me', async (err: any, decoded: any) => {
+  jwt.verify(token, process.env.JWT_SECRET || 'secret_dev', async (err: any, decoded: any) => {
     if (err) return res.status(403).json({ success: false, message: 'Token inválido o expirado' });
 
     try {
       const user = await prisma.usuario.findUnique({
-        where: { id: decoded.userId },
+        where: { id: decoded.id },
         include: { rol: true }
       });
       if (!user || !user.activo) {
