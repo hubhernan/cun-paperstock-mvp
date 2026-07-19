@@ -20,19 +20,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+    }
+    return storedToken;
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-    }
+    // Las variables ya se inicializaron síncronamente, pero por si acaso
   }, []);
 
   const login = (newToken: string, newUser: User) => {
