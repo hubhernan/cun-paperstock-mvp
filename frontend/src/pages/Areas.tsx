@@ -33,7 +33,7 @@ const Areas: React.FC = () => {
   useEffect(() => {
     const fetchAreas = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/areas');
+        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/areas');
         if (response.data.success) {
           setAreas(response.data.data);
         }

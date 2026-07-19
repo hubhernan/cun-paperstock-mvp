@@ -22,7 +22,7 @@ const Usuarios: React.FC = () => {
   useEffect(() => {
     const fetchAuditoria = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/auditoria', {
+        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/auditoria', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {

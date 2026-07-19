@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
 
   const fetchKPIs = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/dashboard/kpis');
+      const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/dashboard/kpis');
       if (response.data.success) {
         setKpis(response.data.data);
       }
@@ -38,7 +38,7 @@ const Dashboard: React.FC = () => {
     fetchKPIs();
 
     // Conectar a Socket.io
-    const socket: Socket = io('http://localhost:3000');
+    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
 
     socket.on('stockUpdate', (data) => {
       console.log('Evento de inventario recibido en tiempo real:', data);

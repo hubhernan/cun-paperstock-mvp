@@ -22,7 +22,7 @@ const Movimientos: React.FC = () => {
   useEffect(() => {
     const fetchMovimientos = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/movimientos');
+        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/movimientos');
         if (response.data.success) {
           setMovimientos(response.data.data);
         }

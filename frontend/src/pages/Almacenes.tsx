@@ -16,7 +16,7 @@ const Almacenes: React.FC = () => {
   useEffect(() => {
     const fetchAlmacenes = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/almacenes');
+        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/almacenes');
         if (response.data.success) {
           setAlmacenes(response.data.data);
         }
