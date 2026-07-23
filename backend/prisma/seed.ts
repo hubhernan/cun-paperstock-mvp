@@ -45,11 +45,11 @@ async function main() {
 
   // 3. Crear Tipos de Papel
   const tipoPapel1 = await prisma.tipoPapel.upsert({
-    where: { codigo: 'BT-001' },
+    where: { codigo: 'BTP-0001' },
     update: {},
     create: {
-      codigo: 'BT-001',
-      descripcion: 'Bag Tag Standard (Térmico directo)',
+      codigo: 'BTP-0001',
+      descripcion: 'Rollos Etiqueta Equipaje (BTP-0001)',
       dimensiones: '21.25" x 2.125"',
       gramaje: '80g',
       material: 'Papel térmico top coated',
@@ -63,11 +63,11 @@ async function main() {
   });
 
   const tipoPapel2 = await prisma.tipoPapel.upsert({
-    where: { codigo: 'BP-001' },
+    where: { codigo: 'ATB-0001' },
     update: {},
     create: {
-      codigo: 'BP-001',
-      descripcion: 'Boarding Pass CUN',
+      codigo: 'ATB-0001',
+      descripcion: 'Rollos Pases de Abordar (ATB-0001)',
       dimensiones: '8" x 3.25"',
       gramaje: '105g',
       material: 'Cartulina térmica',
@@ -84,23 +84,49 @@ async function main() {
   // 4. Crear Almacenes
   const almacenCentral = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
-    update: {},
+    update: {
+      nombre: 'Almacén Central',
+      ubicacion: 'Terminal 2',
+      proveedor: 'ASUR',
+    },
     create: {
       id: '00000000-0000-0000-0000-000000000001',
       nombre: 'Almacén Central',
-      ubicacion: 'Sótano Terminal 2',
+      ubicacion: 'Terminal 2',
       capacidad: 'Grande',
+      proveedor: 'ASUR',
+    },
+  });
+
+  const almacenT4 = await prisma.almacen.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    update: {
+      nombre: 'Almacén Central',
+      ubicacion: 'Terminal 4',
+      proveedor: 'SITA',
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      nombre: 'Almacén Central',
+      ubicacion: 'Terminal 4',
+      capacidad: 'Mediana',
+      proveedor: 'SITA',
     },
   });
 
   const almacenT3 = await prisma.almacen.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000002' },
-    update: {},
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: {
+      nombre: 'Almacén Terminal 3',
+      ubicacion: 'Planta Baja T3',
+      proveedor: 'OTRO',
+    },
     create: {
-      id: '00000000-0000-0000-0000-000000000002',
+      id: '00000000-0000-0000-0000-000000000003',
       nombre: 'Almacén Terminal 3',
       ubicacion: 'Planta Baja T3',
       capacidad: 'Mediana',
+      proveedor: 'OTRO',
     },
   });
   console.log('Almacenes listos.');
@@ -164,33 +190,32 @@ async function main() {
     },
   });
 
-  await prisma.stockAlmacen.upsert({
-    where: { almacenId_tipoPapelId: { almacenId: almacenCentral.id, tipoPapelId: tipoPapel1.id } },
-    update: { cantidadActual: 350 },
-    create: {
+  await prisma.stockAlmacen.deleteMany();
+
+  await prisma.stockAlmacen.create({
+    data: {
       almacenId: almacenCentral.id,
       tipoPapelId: tipoPapel1.id,
       cantidadActual: 350,
+      loteId: lote1.id
     },
   });
 
-  await prisma.stockAlmacen.upsert({
-    where: { almacenId_tipoPapelId: { almacenId: almacenCentral.id, tipoPapelId: tipoPapel2.id } },
-    update: { cantidadActual: 120 },
-    create: {
+  await prisma.stockAlmacen.create({
+    data: {
       almacenId: almacenCentral.id,
       tipoPapelId: tipoPapel2.id,
       cantidadActual: 120,
+      loteId: lote1.id
     },
   });
 
-  await prisma.stockAlmacen.upsert({
-    where: { almacenId_tipoPapelId: { almacenId: almacenT3.id, tipoPapelId: tipoPapel1.id } },
-    update: { cantidadActual: 45 },
-    create: {
+  await prisma.stockAlmacen.create({
+    data: {
       almacenId: almacenT3.id,
       tipoPapelId: tipoPapel1.id,
       cantidadActual: 45,
+      loteId: lote1.id
     },
   });
   console.log('Stock y Lotes listos.');

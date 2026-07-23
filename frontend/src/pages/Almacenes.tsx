@@ -7,6 +7,7 @@ interface Almacen {
   nombre: string;
   ubicacion: string;
   capacidad: string;
+  proveedor?: string;
 }
 
 const Almacenes: React.FC = () => {
@@ -46,8 +47,13 @@ const Almacenes: React.FC = () => {
           <div className="card w-full">No hay almacenes registrados.</div>
         ) : (
           almacenes.map(almacen => (
-            <div key={almacen.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <h3 style={{ margin: '0 0 0.5rem 0' }}>{almacen.nombre}</h3>
+            <div key={almacen.id} className="card relative" style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: almacen.proveedor === 'SITA' ? '3px solid #3b82f6' : (almacen.proveedor === 'ASUR' ? '3px solid #10b981' : '3px solid var(--color-primary)') }}>
+              {almacen.proveedor && (
+                <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded ${almacen.proveedor === 'SITA' ? 'bg-blue-900/50 text-blue-400 border border-blue-700/50' : (almacen.proveedor === 'ASUR' ? 'bg-green-900/50 text-green-400 border border-green-700/50' : 'bg-gray-800/50 text-gray-300 border border-gray-600/50')}`}>
+                  {almacen.proveedor}
+                </div>
+              )}
+              <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '4rem' }}>{almacen.nombre}</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
                 <MapPin size={16} />
                 {almacen.ubicacion}

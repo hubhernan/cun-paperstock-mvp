@@ -6,7 +6,15 @@ const prisma = new PrismaClient();
 export const getAllLotes = async (req: Request, res: Response) => {
   try {
     const lotes = await prisma.lote.findMany({
-      include: { tipoPapel: true }
+      include: { 
+        tipoPapel: true,
+        stocks: {
+          include: {
+            almacen: true
+          }
+        }
+      },
+      orderBy: { fechaRecepcion: 'desc' }
     });
     res.json({ success: true, data: lotes });
   } catch (error) {

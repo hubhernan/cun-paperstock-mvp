@@ -50,6 +50,7 @@ model TipoPapel {
   movimientos   MovimientoInventario[]
   asignaciones  AsignacionPeriferico[]
   perifericosCompatibles PerifericoTipoPapel[]
+  alertas       AlertaStock[]
 
   @@map("tipos_papel")
 }
@@ -63,6 +64,7 @@ model Lote {
   tipoPapel      TipoPapel              @relation(fields: [tipoPapelId], references: [id])
   movimientos    MovimientoInventario[]
   asignaciones   AsignacionPeriferico[]
+  stocks         StockAlmacen[]
 
   @@unique([tipoPapelId, numeroLote])
   @@map("lotes")
@@ -73,6 +75,7 @@ model Almacen {
   nombre            String
   ubicacion         String
   capacidad         String?
+  proveedor         String?                @default("ASUR")
   responsableId     String?                @map("responsable_id")
   stocks            StockAlmacen[]
   movimientosOrigen MovimientoInventario[] @relation("AlmacenOrigen")
@@ -85,11 +88,20 @@ model StockAlmacen {
   id             String    @id @default(uuid())
   almacenId      String    @map("almacen_id")
   tipoPapelId    String    @map("tipo_papel_id")
+  loteId         String?   @map("lote_id")
   cantidadActual Int       @default(0) @map("cantidad_actual")
+  
   almacen        Almacen   @relation(fields: [almacenId], references: [id])
   tipoPapel      TipoPapel @relation(fields: [tipoPapelId], references: [id])
+  lote           Lote?     @relation(fields: [loteId], references: [id])
 
-  @@unique([almacenId, tipoPapelId])
+  // Eliminamos el @@unique([almacenId, tipoPapelId]) porque ahora un almacén puede 
+  // tener el mismo tipo de papel en múltiples lotes.
+  // Podríamos poner @@unique([almacenId, tipoPapelId, loteId]), pero Prisma y Postgres
+  // tienen ciertas peculiaridades con los NULL. Es mejor manejar la unicidad en código
+  // si el loteId es nulo, o simplemente definir @@unique sin preocuparse demasiado.
+  // Lo dejamos sin @@unique a nivel de tabla, el código se encargará.
+  
   @@map("stock_almacen")
 }
 
@@ -184,4 +196,17 @@ model AuditoriaAcciones {
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@map("auditoria_acciones")
+}
+
+// Fase 6.2
+model AlertaStock {
+  id          String    @id @default(uuid())
+  tipoPapelId String    @map("tipo_papel_id")
+  mensaje     String
+  leida       Boolean   @default(false)
+  fecha       DateTime  @default(now())
+  
+  tipoPapel   TipoPapel @relation(fields: [tipoPapelId], references: [id])
+
+  @@map("alertas_stock")
 }

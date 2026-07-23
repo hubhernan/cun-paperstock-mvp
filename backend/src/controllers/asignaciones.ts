@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { getIO } from '../socket';
+import { verificarAlertaStock } from './alertas';
+import { deductStockFIFO } from './movimientos';
 
 const prisma = new PrismaClient();
 
@@ -27,54 +29,52 @@ export const registrarAsignacion = async (req: Request, res: Response) => {
   const usuarioId = (req as any).user.id;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Descontar del almacén de origen
-      const stockRecord = await tx.stockAlmacen.findUnique({
-        where: { almacenId_tipoPapelId: { almacenId: almacenOrigenId, tipoPapelId } }
-      });
+    const results = await prisma.$transaction(async (tx) => {
+      // 1. Descontar del almacén de origen usando FIFO (o lote específico si se proveyó)
+      const lotesDeducidos = await deductStockFIFO(tx, almacenOrigenId, tipoPapelId, Number(cantidadAsignada), loteId);
 
-      if (!stockRecord || stockRecord.cantidadActual < cantidadAsignada) {
-        throw new Error('Stock insuficiente en el almacén de origen');
+      let asignacionesGeneradas = [];
+
+      for (const deduccion of lotesDeducidos) {
+        // 2. Registrar el movimiento como SALIDA por asignación
+        await tx.movimientoInventario.create({
+          data: {
+            tipoPapelId,
+            loteId: deduccion.loteId,
+            almacenOrigenId,
+            tipoMovimiento: 'SALIDA',
+            cantidad: deduccion.cantidad,
+            usuarioId,
+            comentarios: `Asignación a periférico ${perifericoId}`
+          }
+        });
+
+        // 3. Crear el registro de asignación
+        const asignacion = await tx.asignacionPeriferico.create({
+          data: {
+            perifericoId,
+            tipoPapelId,
+            loteId: deduccion.loteId,
+            cantidadAsignada: deduccion.cantidad,
+            usuarioId
+          }
+        });
+        
+        asignacionesGeneradas.push(asignacion);
       }
 
-      await tx.stockAlmacen.update({
-        where: { id: stockRecord.id },
-        data: { cantidadActual: stockRecord.cantidadActual - Number(cantidadAsignada) }
-      });
+      // 4. Verificar alerta de stock
+      await verificarAlertaStock(tx, tipoPapelId);
 
-      // 2. Registrar el movimiento como SALIDA por asignación
-      await tx.movimientoInventario.create({
-        data: {
-          tipoPapelId,
-          loteId,
-          almacenOrigenId,
-          tipoMovimiento: 'SALIDA',
-          cantidad: Number(cantidadAsignada),
-          usuarioId,
-          comentarios: `Asignación a periférico ${perifericoId}`
-        }
-      });
-
-      // 3. Crear el registro de asignación
-      const asignacion = await tx.asignacionPeriferico.create({
-        data: {
-          perifericoId,
-          tipoPapelId,
-          loteId,
-          cantidadAsignada: Number(cantidadAsignada),
-          usuarioId
-        }
-      });
-
-      return asignacion;
+      return asignacionesGeneradas;
     });
 
-    res.json({ success: true, data: result, message: 'Asignación registrada exitosamente' });
+    res.json({ success: true, data: results, message: 'Asignación(es) registrada(s) exitosamente' });
     
     // Emitir evento WebSocket para actualizar en tiempo real
     try {
       const io = getIO();
-      io.emit('stockUpdate', { action: 'ASIGNACION', data: result });
+      io.emit('stockUpdate', { action: 'ASIGNACION', data: results });
     } catch (err) {
       console.error('WebSocket no disponible', err);
     }
