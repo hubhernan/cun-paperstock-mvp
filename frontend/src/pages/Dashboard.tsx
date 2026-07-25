@@ -1,8 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { Package, TrendingUp, AlertTriangle, Layers } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, Layers, Activity, ServerCrash } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface TelemetryAlert {
+  id: string;
+  kioskoId: string;
+  mensaje: string;
+  severity: string;
+  fecha: string;
+}
 
 interface KPIs {
   totalTiposPapel: number;
@@ -20,6 +29,15 @@ const Dashboard: React.FC = () => {
     alertasStock: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [liveAlerts, setLiveAlerts] = useState<TelemetryAlert[]>([]);
+  const [activeKiosks, setActiveKiosks] = useState(0);
+  const [pingHistory, setPingHistory] = useState<{ time: string, pings: number }[]>(Array.from({length: 10}, (_, i) => ({ time: '', pings: 0 })));
+  const [currentPings, setCurrentPings] = useState(0);
+  const currentPingsRef = useRef(0);
+
+  useEffect(() => {
+    currentPingsRef.current = currentPings;
+  }, [currentPings]);
 
   const fetchKPIs = async () => {
     try {
@@ -37,16 +55,39 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchKPIs();
 
+    // Historial de pings cada 3 segundos para la gráfica
+    const interval = setInterval(() => {
+      const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second:'2-digit' });
+      setPingHistory(prev => {
+        const newHistory = [...prev, { time, pings: currentPingsRef.current }];
+        if (newHistory.length > 20) newHistory.shift();
+        return newHistory;
+      });
+      setCurrentPings(0);
+    }, 3000);
+
     // Conectar a Socket.io
     const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
 
     socket.on('stockUpdate', (data) => {
       console.log('Evento de inventario recibido en tiempo real:', data);
-      // Actualizar los KPIs cuando hay un movimiento
       fetchKPIs();
     });
 
+    socket.on('kiosk_telemetry_update', (data) => {
+      console.log('Telemetría Kiosko:', data);
+      setActiveKiosks(prev => prev + 1);
+      setCurrentPings(prev => prev + 1);
+    });
+
+    socket.on('nueva_alerta', (data: TelemetryAlert) => {
+      console.log('🚨 Nueva Alerta:', data);
+      setLiveAlerts(prev => [data, ...prev].slice(0, 10)); // Mantener las últimas 10
+      setKpis(prev => ({ ...prev, alertasStock: prev.alertasStock + 1 }));
+    });
+
     return () => {
+      clearInterval(interval);
       socket.disconnect();
     };
   }, []);
@@ -104,9 +145,83 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       
-      <div className="card">
-        <h3>Última Actualización en Tiempo Real</h3>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Conectado al servidor vía Socket.io de forma exitosa.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Top Alertas (Tiempo Real)</h3>
+            <span style={{ padding: '0.25rem 0.75rem', background: 'var(--color-danger)', color: 'white', borderRadius: '12px', fontSize: '0.8rem' }}>
+              En Vivo
+            </span>
+          </div>
+          {liveAlerts.length === 0 ? (
+            <p style={{ color: 'var(--color-text-muted)' }}>No hay alertas críticas recientes.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {liveAlerts.map(alerta => (
+                <li key={alerta.id} style={{ padding: '1rem', borderBottom: '1px solid #eee', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                  <ServerCrash size={20} color={alerta.severity === 'CRITICA' || alerta.severity === 'OFFLINE' ? 'var(--color-danger)' : 'var(--color-warning)'} />
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 500 }}>{alerta.mensaje}</p>
+                    <small style={{ color: 'var(--color-text-muted)' }}>{new Date(alerta.fecha).toLocaleTimeString()}</small>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>Salud Operativa (Mapa Lógico)</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 2</h4>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>25 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 2')).length} Alertas</p>
+            </div>
+            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 3</h4>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>42 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 3')).length} Alertas</p>
+            </div>
+            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 4</h4>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>38 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 4')).length} Alertas</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="card" style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <h3 style={{ margin: '0 0 0.25rem 0' }}>Actividad de Telemetría (Pings de Kioskos)</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+              <Activity size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--color-success)' }} />
+              Se han recibido {activeKiosks} pings en total en esta sesión.
+            </p>
+          </div>
+          <div style={{ background: '#dcfce7', color: 'var(--color-success)', padding: '0.5rem 1rem', borderRadius: '12px', fontWeight: 'bold' }}>
+            {currentPings} pings / seg
+          </div>
+        </div>
+        <div style={{ height: 250, width: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={pingHistory} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorPings" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="time" stroke="var(--color-text-muted)" fontSize={12} tickMargin={10} />
+              <YAxis stroke="var(--color-text-muted)" fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+              <Tooltip 
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ color: 'var(--color-primary)', fontWeight: 'bold' }}
+              />
+              <Area type="monotone" dataKey="pings" name="Pings" stroke="var(--color-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorPings)" animationDuration={300} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

@@ -8,6 +8,9 @@ interface TipoPapel {
   descripcion: string;
   unidadMedida: string;
   stockMinimo: number;
+  proveedor: string;
+  costoUnitario: number;
+  rendimientoEstimado: number | null;
 }
 
 const Catalogo: React.FC = () => {
@@ -49,6 +52,9 @@ const Catalogo: React.FC = () => {
               <tr>
                 <th>Código</th>
                 <th>Descripción</th>
+                <th>Proveedor</th>
+                <th>Costo Unit.</th>
+                <th>Rendimiento (Impresiones)</th>
                 <th>Unidad</th>
                 <th>Stock Mínimo</th>
               </tr>
@@ -58,13 +64,16 @@ const Catalogo: React.FC = () => {
                 <tr key={tipo.id}>
                   <td style={{ fontWeight: 500 }}>{tipo.codigo}</td>
                   <td>{tipo.descripcion}</td>
+                  <td>{tipo.proveedor || 'N/A'}</td>
+                  <td>${tipo.costoUnitario?.toString()}</td>
+                  <td>{tipo.rendimientoEstimado ? `${tipo.rendimientoEstimado} docs` : 'N/A'}</td>
                   <td>{tipo.unidadMedida}</td>
                   <td>{tipo.stockMinimo}</td>
                 </tr>
               ))}
               {tipos.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center' }}>No hay registros.</td>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>No hay registros.</td>
                 </tr>
               )}
             </tbody>

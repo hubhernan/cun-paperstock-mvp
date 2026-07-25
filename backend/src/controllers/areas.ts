@@ -7,8 +7,16 @@ export const getAllAreas = async (req: Request, res: Response) => {
   try {
     const areas = await prisma.areaAeropuerto.findMany({
       include: {
-        perifericos: true,
-      }
+        perifericos: {
+          include: {
+            tiposCompatibles: {
+              include: { tipoPapel: true }
+            }
+          },
+          orderBy: { identificadorUnico: 'asc' }
+        }
+      },
+      orderBy: { terminal: 'asc' }
     });
     res.json({ success: true, data: areas });
   } catch (error) {

@@ -8,17 +8,18 @@ datasource db {
 }
 
 model Usuario {
-  id               String                 @id @default(uuid())
-  nombre           String
-  email            String                 @unique
-  passwordHash     String                 @map("password_hash")
-  rolId            String                 @map("rol_id")
-  activo           Boolean                @default(true)
-  creadoEn         DateTime               @default(now()) @map("creado_en")
-  rol              Rol                    @relation(fields: [rolId], references: [id])
-  movimientos      MovimientoInventario[]
-  asignaciones     AsignacionPeriferico[]
-  auditorias       AuditoriaAcciones[]
+  id                    String                  @id @default(uuid())
+  nombre                String
+  email                 String                  @unique
+  passwordHash          String                  @map("password_hash")
+  rolId                 String                  @map("rol_id")
+  activo                Boolean                 @default(true)
+  creadoEn              DateTime                @default(now()) @map("creado_en")
+  rol                   Rol                     @relation(fields: [rolId], references: [id])
+  movimientos           MovimientoInventario[]
+  asignaciones          AsignacionPeriferico[]
+  auditorias            AuditoriaAcciones[]
+  IncidenteDiscrepancia IncidenteDiscrepancia[]
 
   @@map("usuarios")
 }
@@ -33,24 +34,25 @@ model Rol {
 }
 
 model TipoPapel {
-  id            String                 @id @default(uuid())
-  codigo        String                 @unique
-  descripcion   String
-  dimensiones   String
-  gramaje       String?
-  material      String?
-  proveedor     String?
-  unidadMedida  String                 @map("unidad_medida")
-  costoUnitario Decimal                @map("costo_unitario") @db.Decimal(10, 2)
-  stockMinimo   Int                    @map("stock_minimo")
-  stockMaximo   Int                    @map("stock_maximo")
-  puntoReorden  Int                    @map("punto_reorden")
-  lotes         Lote[]
-  stocks        StockAlmacen[]
-  movimientos   MovimientoInventario[]
-  asignaciones  AsignacionPeriferico[]
+  id                     String                 @id @default(uuid())
+  codigo                 String                 @unique
+  descripcion            String
+  dimensiones            String
+  gramaje                String?
+  material               String?
+  proveedor              String?
+  unidadMedida           String                 @map("unidad_medida")
+  costoUnitario          Decimal                @map("costo_unitario") @db.Decimal(10, 2)
+  rendimientoEstimado    Int?                   @map("rendimiento_estimado") // ej. 2000 ATB
+  stockMinimo            Int                    @map("stock_minimo")
+  stockMaximo            Int                    @map("stock_maximo")
+  puntoReorden           Int                    @map("punto_reorden")
+  lotes                  Lote[]
+  stocks                 StockAlmacen[]
+  movimientos            MovimientoInventario[]
+  asignaciones           AsignacionPeriferico[]
   perifericosCompatibles PerifericoTipoPapel[]
-  alertas       AlertaStock[]
+  alertas                AlertaStock[]
 
   @@map("tipos_papel")
 }
@@ -71,29 +73,29 @@ model Lote {
 }
 
 model Almacen {
-  id                String                 @id @default(uuid())
-  nombre            String
-  ubicacion         String
-  capacidad         String?
-  proveedor         String?                @default("ASUR")
-  responsableId     String?                @map("responsable_id")
-  stocks            StockAlmacen[]
-  movimientosOrigen MovimientoInventario[] @relation("AlmacenOrigen")
+  id                 String                 @id @default(uuid())
+  nombre             String
+  ubicacion          String
+  capacidad          String?
+  proveedor          String?                @default("ASUR")
+  responsableId      String?                @map("responsable_id")
+  stocks             StockAlmacen[]
+  movimientosOrigen  MovimientoInventario[] @relation("AlmacenOrigen")
   movimientosDestino MovimientoInventario[] @relation("AlmacenDestino")
 
   @@map("almacenes")
 }
 
 model StockAlmacen {
-  id             String    @id @default(uuid())
-  almacenId      String    @map("almacen_id")
-  tipoPapelId    String    @map("tipo_papel_id")
-  loteId         String?   @map("lote_id")
-  cantidadActual Int       @default(0) @map("cantidad_actual")
-  
-  almacen        Almacen   @relation(fields: [almacenId], references: [id])
-  tipoPapel      TipoPapel @relation(fields: [tipoPapelId], references: [id])
-  lote           Lote?     @relation(fields: [loteId], references: [id])
+  id             String  @id @default(uuid())
+  almacenId      String  @map("almacen_id")
+  tipoPapelId    String  @map("tipo_papel_id")
+  loteId         String? @map("lote_id")
+  cantidadActual Int     @default(0) @map("cantidad_actual")
+
+  almacen   Almacen   @relation(fields: [almacenId], references: [id])
+  tipoPapel TipoPapel @relation(fields: [tipoPapelId], references: [id])
+  lote      Lote?     @relation(fields: [loteId], references: [id])
 
   // Eliminamos el @@unique([almacenId, tipoPapelId]) porque ahora un almacén puede 
   // tener el mismo tipo de papel en múltiples lotes.
@@ -101,32 +103,40 @@ model StockAlmacen {
   // tienen ciertas peculiaridades con los NULL. Es mejor manejar la unicidad en código
   // si el loteId es nulo, o simplemente definir @@unique sin preocuparse demasiado.
   // Lo dejamos sin @@unique a nivel de tabla, el código se encargará.
-  
+
   @@map("stock_almacen")
 }
 
 model AreaAeropuerto {
-  id       String    @id @default(uuid())
-  nombre   String    // Ej: Terminal 2 - Check-in
+  id       String  @id @default(uuid())
+  nombre   String // Ej: Terminal 2 - Check-in
   terminal String
   zona     String?
-  
+
   perifericos Periferico[]
 
   @@map("areas_aeropuerto")
 }
 
 model Periferico {
-  id                  String    @id @default(uuid())
-  identificadorUnico  String    @unique @map("identificador_unico")
-  marca               String
-  modelo              String
-  areaId              String    @map("area_id")
-  estadoOperativo     String    @map("estado_operativo") // ACTIVO, MANTENIMIENTO, INACTIVO
-  
-  area                AreaAeropuerto @relation(fields: [areaId], references: [id])
-  asignaciones        AsignacionPeriferico[]
-  tiposCompatibles    PerifericoTipoPapel[]
+  id                 String @id @default(uuid())
+  identificadorUnico String @unique @map("identificador_unico")
+  marca              String
+  modelo             String
+  areaId             String @map("area_id")
+  estadoOperativo    String @map("estado_operativo") // ACTIVO, MANTENIMIENTO, INACTIVO
+
+  // Campos de Telemetría (Fase Inteligente)
+  estadoConexion     String    @default("OFFLINE") @map("estado_conexion") // ONLINE, OFFLINE
+  nivelAtb           Int       @default(100) @map("nivel_atb") // Porcentaje ATB restante
+  nivelBtp           Int       @default(100) @map("nivel_btp") // Porcentaje BTP restante
+  ultimoConsumo      DateTime? @map("ultimo_consumo")
+  impresionesDiarias Int       @default(0) @map("impresiones_diarias")
+
+  area             AreaAeropuerto         @relation(fields: [areaId], references: [id])
+  asignaciones     AsignacionPeriferico[]
+  tiposCompatibles PerifericoTipoPapel[]
+  telemetria       RegistroTelemetria[]
 
   @@map("perifericos")
 }
@@ -135,8 +145,8 @@ model PerifericoTipoPapel {
   perifericoId String @map("periferico_id")
   tipoPapelId  String @map("tipo_papel_id")
 
-  periferico   Periferico @relation(fields: [perifericoId], references: [id])
-  tipoPapel    TipoPapel  @relation(fields: [tipoPapelId], references: [id])
+  periferico Periferico @relation(fields: [perifericoId], references: [id])
+  tipoPapel  TipoPapel  @relation(fields: [tipoPapelId], references: [id])
 
   @@id([perifericoId, tipoPapelId])
   @@map("perifericos_tipos_papel_compatibles")
@@ -144,15 +154,15 @@ model PerifericoTipoPapel {
 
 // Fase 3
 model MovimientoInventario {
-  id               String    @id @default(uuid())
-  tipoPapelId      String    @map("tipo_papel_id")
-  loteId           String?   @map("lote_id")
-  almacenOrigenId  String?   @map("almacen_origen_id")
-  almacenDestinoId String?   @map("almacen_destino_id")
-  tipoMovimiento   String    @map("tipo_movimiento") // ENTRADA, SALIDA, MERMA, TRANSFERENCIA
+  id               String   @id @default(uuid())
+  tipoPapelId      String   @map("tipo_papel_id")
+  loteId           String?  @map("lote_id")
+  almacenOrigenId  String?  @map("almacen_origen_id")
+  almacenDestinoId String?  @map("almacen_destino_id")
+  tipoMovimiento   String   @map("tipo_movimiento") // ENTRADA, SALIDA, MERMA, TRANSFERENCIA
   cantidad         Int
-  usuarioId        String    @map("usuario_id")
-  fechaMovimiento  DateTime  @default(now()) @map("fecha_movimiento")
+  usuarioId        String   @map("usuario_id")
+  fechaMovimiento  DateTime @default(now()) @map("fecha_movimiento")
   comentarios      String?
 
   tipoPapel      TipoPapel @relation(fields: [tipoPapelId], references: [id])
@@ -166,18 +176,18 @@ model MovimientoInventario {
 
 // Fase 3
 model AsignacionPeriferico {
-  id                String    @id @default(uuid())
-  perifericoId      String    @map("periferico_id")
-  tipoPapelId       String    @map("tipo_papel_id")
-  loteId            String?   @map("lote_id")
-  cantidadAsignada  Int       @map("cantidad_asignada")
-  usuarioId         String    @map("usuario_id")
-  fechaAsignacion   DateTime  @default(now()) @map("fecha_asignacion")
+  id               String   @id @default(uuid())
+  perifericoId     String   @map("periferico_id")
+  tipoPapelId      String   @map("tipo_papel_id")
+  loteId           String?  @map("lote_id")
+  cantidadAsignada Int      @map("cantidad_asignada")
+  usuarioId        String   @map("usuario_id")
+  fechaAsignacion  DateTime @default(now()) @map("fecha_asignacion")
 
-  periferico     Periferico @relation(fields: [perifericoId], references: [id])
-  tipoPapel      TipoPapel  @relation(fields: [tipoPapelId], references: [id])
-  lote           Lote?      @relation(fields: [loteId], references: [id])
-  usuario        Usuario    @relation(fields: [usuarioId], references: [id])
+  periferico Periferico @relation(fields: [perifericoId], references: [id])
+  tipoPapel  TipoPapel  @relation(fields: [tipoPapelId], references: [id])
+  lote       Lote?      @relation(fields: [loteId], references: [id])
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
 
   @@map("asignaciones_periferico")
 }
@@ -193,20 +203,62 @@ model AuditoriaAcciones {
   ip        String?
   fecha     DateTime @default(now())
 
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
 
   @@map("auditoria_acciones")
 }
 
 // Fase 6.2
 model AlertaStock {
-  id          String    @id @default(uuid())
-  tipoPapelId String    @map("tipo_papel_id")
+  id          String   @id @default(uuid())
+  tipoPapelId String   @map("tipo_papel_id")
   mensaje     String
-  leida       Boolean   @default(false)
-  fecha       DateTime  @default(now())
-  
-  tipoPapel   TipoPapel @relation(fields: [tipoPapelId], references: [id])
+  leida       Boolean  @default(false)
+  fecha       DateTime @default(now())
+
+  tipoPapel TipoPapel @relation(fields: [tipoPapelId], references: [id])
 
   @@map("alertas_stock")
+}
+
+// Fase 6 Inteligente - Nuevos Modelos
+
+model RegistroTelemetria {
+  id             String   @id @default(uuid())
+  perifericoId   String   @map("periferico_id")
+  nivelAtb       Int      @map("nivel_atb")
+  nivelBtp       Int      @map("nivel_btp")
+  estadoConexion String   @map("estado_conexion")
+  fechaRegistro  DateTime @default(now()) @map("fecha_registro")
+
+  periferico Periferico @relation(fields: [perifericoId], references: [id])
+
+  @@map("registros_telemetria")
+}
+
+model CorteDiario {
+  id          String   @id @default(uuid())
+  fechaCorte  DateTime @default(now()) @map("fecha_corte")
+  totalAtb    Int      @default(0) @map("total_atb")
+  totalBtp    Int      @default(0) @map("total_btp")
+  diferencias String?  @db.Text
+  creadoPor   String?  @map("creado_por") // "SISTEMA" o ID de usuario
+
+  @@map("cortes_diarios")
+}
+
+model IncidenteDiscrepancia {
+  id             String   @id @default(uuid())
+  terminal       String
+  ingenieroId    String   @map("ingeniero_id")
+  stockCalculado Int      @map("stock_calculado")
+  stockFisico    Int      @map("stock_fisico")
+  diferencia     Int
+  estado         String   @default("ABIERTO") // ABIERTO, INVESTIGACION, RESUELTO
+  fechaIncidente DateTime @default(now()) @map("fecha_incidente")
+  comentarios    String?  @db.Text
+
+  ingeniero Usuario @relation(fields: [ingenieroId], references: [id])
+
+  @@map("incidentes_discrepancias")
 }

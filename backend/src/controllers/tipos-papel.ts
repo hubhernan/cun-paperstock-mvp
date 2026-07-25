@@ -26,6 +26,7 @@ export const createTipoPapel = async (req: Request, res: Response) => {
         proveedor: data.proveedor,
         unidadMedida: data.unidadMedida,
         costoUnitario: data.costoUnitario,
+        rendimientoEstimado: data.rendimientoEstimado,
         stockMinimo: data.stockMinimo,
         stockMaximo: data.stockMaximo,
         puntoReorden: data.puntoReorden,

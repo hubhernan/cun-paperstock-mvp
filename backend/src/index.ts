@@ -15,6 +15,8 @@ import dashboardRoutes from './routes/dashboard';
 import auditoriaRoutes from './routes/auditoria';
 import reportesRoutes from './routes/reportes';
 import alertasRoutes from './routes/alertas';
+import { startKioskSimulator } from './services/KioskSimulator';
+import { startAlertService } from './services/AlertService';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -37,6 +39,11 @@ app.use('/api/alertas', alertasRoutes);
 
 const server = createServer(app);
 initSocket(server);
+
+// Iniciar simulador de telemetría de Kioskos (Fase 3)
+startKioskSimulator();
+// Iniciar servicio automático de alertas (Fase 4)
+startAlertService();
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
