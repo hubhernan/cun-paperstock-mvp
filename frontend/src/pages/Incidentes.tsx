@@ -3,7 +3,6 @@ import { AlertTriangle, Plus, X, Search, CheckCircle, Clock } from 'lucide-react
 import { getIncidentes, createIncidente, updateIncidenteStatus } from '../services/incidentesService';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 interface Incidente {
   id: string;

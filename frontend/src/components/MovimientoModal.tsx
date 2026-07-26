@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ScanLine, Keyboard, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
-import { useScanner } from '../hooks/useScanner';
+import { X, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
 import api from '../services/api';
 import { getLotes, createLote } from '../services/lotesService';
 

@@ -205,7 +205,7 @@ const Dashboard: React.FC = () => {
                   paddingAngle={5}
                   dataKey="valor"
                 >
-                  {chartData.stockPorAlmacen.map((entry, index) => (
+                  {chartData.stockPorAlmacen.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -257,7 +257,7 @@ const Dashboard: React.FC = () => {
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
                 <Bar dataKey="valor" fill="#8b5cf6" name="Cantidad" radius={[0, 4, 4, 0]}>
-                  {chartData.consumoPorTipo.map((entry, index) => (
+                  {chartData.consumoPorTipo.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

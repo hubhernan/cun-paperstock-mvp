@@ -49,7 +49,7 @@ const Reportes: React.FC = () => {
       let title = '';
       let fileName = '';
 
-      const filters = {
+      const filters: Record<string, string> = {
         fechaInicio,
         fechaFin,
         ...(areaId && { areaId }),
