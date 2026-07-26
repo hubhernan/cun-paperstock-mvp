@@ -48,7 +48,7 @@ app.use('/api/intervenciones', intervencionesRoutes);
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDistPath));
 
-app.get('*', (req, res) => {
+app.use((req, res, next) => {
   if (req.originalUrl.startsWith('/api')) {
     return res.status(404).json({ error: 'Endpoint no encontrado' });
   }
