@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { createServer } from 'http';
 import { initSocket } from './socket';
@@ -42,6 +43,17 @@ app.use('/api/incidentes', incidentesRoutes);
 app.use('/api/alertas', alertasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/intervenciones', intervencionesRoutes);
+
+// Servir el frontend en producción (archivos estáticos)
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+app.get('*', (req, res) => {
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({ error: 'Endpoint no encontrado' });
+  }
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 const server = createServer(app);
 initSocket(server);
