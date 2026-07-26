@@ -36,7 +36,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
-          socket.on('nuevaAlerta', (alerta: Alerta) => {
+          socket.on('nueva_alerta', (alerta: Alerta) => {
             setAlertas(prev => [alerta, ...prev]);
             setNotificacionActiva(alerta);
             

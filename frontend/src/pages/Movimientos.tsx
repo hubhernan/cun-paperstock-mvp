@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { ArrowRightLeft, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from 'lucide-react';
+import { ArrowRightLeft, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import MovimientoModal from '../components/MovimientoModal';
+import { exportToExcel } from '../utils/exportUtils';
 
 interface Movimiento {
   id: string;
@@ -75,6 +76,20 @@ const Movimientos: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const exportToExcelHandler = () => {
+    const dataToExport = filteredMovimientos.map(mov => ({
+      'Tipo': mov.tipoMovimiento,
+      'Papel': mov.tipoPapel.codigo,
+      'Proveedor': (mov.tipoMovimiento === 'ENTRADA' ? mov.almacenDestino?.proveedor : mov.almacenOrigen?.proveedor) || '',
+      'Origen': mov.almacenOrigen?.nombre || '',
+      'Destino': mov.almacenDestino?.nombre || '',
+      'Cantidad': mov.cantidad,
+      'Fecha': format(new Date(mov.fechaMovimiento), 'dd/MM/yyyy HH:mm'),
+      'Usuario': mov.usuario.nombre
+    }));
+    exportToExcel(dataToExport, 'Movimientos', 'movimientos_cun');
+  };
+
   const filteredMovimientos = movimientos.filter(mov => {
     if (filtroProveedor === 'ALL') return true;
     const provOrigen = mov.almacenOrigen?.proveedor;
@@ -104,6 +119,10 @@ const Movimientos: React.FC = () => {
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button className="btn btn-primary" onClick={exportToCSV} style={{ background: 'var(--color-primary-dark)' }}>
             Exportar CSV
+          </button>
+          <button className="btn btn-primary" onClick={exportToExcelHandler} style={{ background: '#107c41' }}>
+            <Download size={18} />
+            Exportar a Excel
           </button>
           <button 
             className="btn btn-primary" 

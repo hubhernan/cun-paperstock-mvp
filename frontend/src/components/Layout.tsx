@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Package, Home, BarChart2, Users, LogOut, Map, ArrowRightLeft, FileText, Bell, X, CheckCircle, Layers } from 'lucide-react';
+import { Package, Home, BarChart2, Users, LogOut, Map, ArrowRightLeft, FileText, Bell, X, CheckCircle, Layers, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAlerts } from '../context/AlertContext';
 import { format } from 'date-fns';
@@ -56,6 +56,10 @@ const Layout: React.FC = () => {
               <Link to="/lotes" className={`nav-link ${isActive('/lotes') ? 'active' : ''}`}>
                 <Layers size={20} />
                 Lotes (FIFO)
+              </Link>
+              <Link to="/incidentes" className={`nav-link ${isActive('/incidentes') ? 'active' : ''}`}>
+                <AlertTriangle size={20} />
+                Incidentes
               </Link>
             </>
           )}

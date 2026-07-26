@@ -161,3 +161,70 @@ export const getReporteConsumoAlmacen = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al generar el reporte de consumo por almacén' });
   }
 };
+
+export const getReporteMovimientosIngeniero = async (req: Request, res: Response) => {
+  try {
+    const { fechaInicio, fechaFin, usuarioId } = req.query;
+    const where: any = {};
+    if (fechaInicio || fechaFin) {
+      where.fechaMovimiento = {};
+      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio as string);
+      if (fechaFin) {
+        const endDate = new Date(fechaFin as string);
+        endDate.setHours(23, 59, 59, 999);
+        where.fechaMovimiento.lte = endDate;
+      }
+    }
+    if (usuarioId) where.usuarioId = usuarioId;
+
+    const movimientos = await prisma.movimientoInventario.findMany({
+      where,
+      include: { tipoPapel: true, almacenOrigen: true, almacenDestino: true, usuario: true },
+      orderBy: { fechaMovimiento: 'desc' },
+    });
+    res.json(movimientos);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar reporte de ingeniero' });
+  }
+};
+
+export const getReporteKioskosAbastecidos = async (req: Request, res: Response) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    const where: any = {};
+    if (fechaInicio || fechaFin) {
+      where.fechaAsignacion = {};
+      if (fechaInicio) where.fechaAsignacion.gte = new Date(fechaInicio as string);
+      if (fechaFin) {
+        const endDate = new Date(fechaFin as string);
+        endDate.setHours(23, 59, 59, 999);
+        where.fechaAsignacion.lte = endDate;
+      }
+    }
+    const asignaciones = await prisma.asignacionPeriferico.findMany({
+      where,
+      include: { periferico: true, tipoPapel: true, usuario: true },
+      orderBy: { fechaAsignacion: 'desc' },
+    });
+    res.json(asignaciones);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar reporte de kioskos' });
+  }
+};
+
+export const getReporteIncidentes = async (req: Request, res: Response) => {
+  try {
+    const { estado } = req.query;
+    const where: any = {};
+    if (estado) where.estado = estado;
+    
+    const incidentes = await prisma.incidenteDiscrepancia.findMany({
+      where,
+      include: { ingeniero: true },
+      orderBy: { fechaIncidente: 'desc' },
+    });
+    res.json(incidentes);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar reporte de incidentes' });
+  }
+};

@@ -12,7 +12,6 @@ interface MovimientoModalProps {
 }
 
 const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipoMovimiento, onSuccess }) => {
-  const [modoEscaner, setModoEscaner] = useState(true);
   const [almacenes, setAlmacenes] = useState<any[]>([]);
   const [tiposPapel, setTiposPapel] = useState<any[]>([]);
   const [lotes, setLotes] = useState<any[]>([]);
@@ -57,7 +56,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
       setError('');
       setSuccessMsg('');
     }
-  }, [isOpen]);
+  }, [isOpen, tipoMovimiento]);
 
   const handleCrearLote = async () => {
     if (!tipoPapelId || !nuevoLoteNum) {
@@ -99,7 +98,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
         almacenOrigenId: (tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA') ? almacenOrigenId : null,
         almacenDestinoId: (tipoMovimiento === 'ENTRADA' || tipoMovimiento === 'TRANSFERENCIA') ? almacenDestinoId : null,
         cantidad: cant,
-        comentarios: modoEscaner ? 'Registrado vía escáner' : 'Registro manual'
+        comentarios: 'Registro manual'
       });
 
       const papel = tiposPapel.find(p => p.id === papelId);
@@ -109,10 +108,8 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
       // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setSuccessMsg(''), 3000);
 
-      // Si no es modo escáner, cerramos el modal
-      if (!modoEscaner) {
-        onClose();
-      }
+      // Cerramos el modal
+      onClose();
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error al registrar movimiento');
     } finally {
@@ -120,17 +117,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
     }
   };
 
-  // Hook del escáner
-  useScanner((codigo) => {
-    if (!isOpen || !modoEscaner) return;
-    
-    const papel = tiposPapel.find(p => p.codigo === codigo);
-    if (papel) {
-      registrarMovimiento(papel.id, 1);
-    } else {
-      setError(`Código no reconocido: ${codigo}`);
-    }
-  });
+  // Escáner deshabilitado temporalmente
 
   if (!isOpen) return null;
 
@@ -152,21 +139,6 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
 
         {/* Body */}
         <div className="p-5">
-          {/* Toggle Mode */}
-          <div className="flex bg-gray-800 rounded-lg p-1 mb-6">
-            <button 
-              className={`flex-1 py-2 flex justify-center items-center gap-2 text-sm font-medium rounded-md transition-colors ${modoEscaner ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200 bg-transparent border-none cursor-pointer'}`}
-              onClick={() => setModoEscaner(true)}
-            >
-              <ScanLine size={16} /> Escáner
-            </button>
-            <button 
-              className={`flex-1 py-2 flex justify-center items-center gap-2 text-sm font-medium rounded-md transition-colors ${!modoEscaner ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200 bg-transparent border-none cursor-pointer'}`}
-              onClick={() => setModoEscaner(false)}
-            >
-              <Keyboard size={16} /> Manual
-            </button>
-          </div>
 
           {error && (
             <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded border border-red-500/30 flex items-center gap-2 text-sm">
@@ -238,41 +210,24 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
               </div>
             )}
 
-            {modoEscaner ? (
-              <div className="mt-6 border-2 border-dashed border-blue-500/50 rounded-xl p-8 text-center bg-blue-500/5">
-                <ScanLine size={48} className="mx-auto text-blue-400 mb-3 animate-pulse" />
-                <p className="text-gray-300 font-medium m-0">Escáner Activo</p>
-                <p className="text-xs text-gray-500 mt-2">Escanea un código para registrar 1 unidad automáticamente.</p>
-                {/* Input oculto para móviles o enfoques forzados */}
-                <input 
-                  type="text" 
-                  className="opacity-0 absolute" 
-                  autoFocus 
-                  onBlur={(e) => e.target.focus()} 
-                />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Tipo de Papel</label>
-                  <select className="input-field w-full" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
-                    <option value="">Selecciona papel...</option>
-                    {tiposPapel.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descripcion}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Cantidad</label>
-                  <input type="number" min="1" className="input-field w-full" value={cantidad} onChange={e => setCantidad(Number(e.target.value))} />
-                </div>
-                <button 
-                  className="btn btn-primary w-full mt-4 flex justify-center items-center gap-2"
-                  onClick={() => registrarMovimiento(tipoPapelId)}
-                  disabled={loading}
-                >
-                  {loading ? 'Guardando...' : 'Guardar Movimiento'}
-                </button>
-              </>
-            )}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Tipo de Papel</label>
+              <select className="input-field w-full" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
+                <option value="">Selecciona papel...</option>
+                {tiposPapel.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descripcion}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Cantidad</label>
+              <input type="number" min="1" className="input-field w-full" value={cantidad} onChange={e => setCantidad(Number(e.target.value))} />
+            </div>
+            <button 
+              className="btn btn-primary w-full mt-4 flex justify-center items-center gap-2"
+              onClick={() => registrarMovimiento(tipoPapelId)}
+              disabled={loading}
+            >
+              {loading ? 'Guardando...' : 'Guardar Movimiento'}
+            </button>
           </div>
         </div>
       </div>

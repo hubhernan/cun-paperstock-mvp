@@ -13,6 +13,7 @@ import Movimientos from './pages/Movimientos';
 import Usuarios from './pages/Usuarios';
 import Reportes from './pages/Reportes';
 import Lotes from './pages/Lotes';
+import Incidentes from './pages/Incidentes';
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const AppRoutes = () => {
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="reportes" element={<Reportes />} />
         <Route path="lotes" element={<Lotes />} />
+        <Route path="incidentes" element={<Incidentes />} />
       </Route>
     </Routes>
   );

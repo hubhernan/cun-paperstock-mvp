@@ -14,12 +14,15 @@ model Usuario {
   passwordHash          String                  @map("password_hash")
   rolId                 String                  @map("rol_id")
   activo                Boolean                 @default(true)
+  turno                 String?
+  dispositivo           String?
   creadoEn              DateTime                @default(now()) @map("creado_en")
   rol                   Rol                     @relation(fields: [rolId], references: [id])
   movimientos           MovimientoInventario[]
   asignaciones          AsignacionPeriferico[]
   auditorias            AuditoriaAcciones[]
   IncidenteDiscrepancia IncidenteDiscrepancia[]
+  IntervencionKiosko    IntervencionKiosko[]
 
   @@map("usuarios")
 }
@@ -82,6 +85,7 @@ model Almacen {
   stocks             StockAlmacen[]
   movimientosOrigen  MovimientoInventario[] @relation("AlmacenOrigen")
   movimientosDestino MovimientoInventario[] @relation("AlmacenDestino")
+  IntervencionKiosko IntervencionKiosko[]
 
   @@map("almacenes")
 }
@@ -133,10 +137,11 @@ model Periferico {
   ultimoConsumo      DateTime? @map("ultimo_consumo")
   impresionesDiarias Int       @default(0) @map("impresiones_diarias")
 
-  area             AreaAeropuerto         @relation(fields: [areaId], references: [id])
-  asignaciones     AsignacionPeriferico[]
-  tiposCompatibles PerifericoTipoPapel[]
-  telemetria       RegistroTelemetria[]
+  area               AreaAeropuerto         @relation(fields: [areaId], references: [id])
+  asignaciones       AsignacionPeriferico[]
+  tiposCompatibles   PerifericoTipoPapel[]
+  telemetria         RegistroTelemetria[]
+  IntervencionKiosko IntervencionKiosko[]
 
   @@map("perifericos")
 }
@@ -261,4 +266,20 @@ model IncidenteDiscrepancia {
   ingeniero Usuario @relation(fields: [ingenieroId], references: [id])
 
   @@map("incidentes_discrepancias")
+}
+
+model IntervencionKiosko {
+  id              String   @id @default(uuid())
+  perifericoId    String   @map("periferico_id")
+  ingenieroId     String   @map("ingeniero_id")
+  accion          String
+  almacenOrigenId String?  @map("almacen_origen_id")
+  comentarios     String?  @db.Text
+  fecha           DateTime @default(now())
+
+  periferico    Periferico @relation(fields: [perifericoId], references: [id])
+  ingeniero     Usuario    @relation(fields: [ingenieroId], references: [id])
+  almacenOrigen Almacen?   @relation(fields: [almacenOrigenId], references: [id])
+
+  @@map("intervenciones_kiosko")
 }

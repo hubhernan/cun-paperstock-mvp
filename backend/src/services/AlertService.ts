@@ -22,6 +22,45 @@ export const startAlertService = () => {
         return;
       }
 
+      // 1. MONITORIZACIÓN DE STOCK GLOBAL (Almacenes)
+      const tiposPapel = await prisma.tipoPapel.findMany();
+      const stockAgrupado = await prisma.stockAlmacen.groupBy({
+        by: ['tipoPapelId'],
+        _sum: { cantidadActual: true }
+      });
+
+      for (const tp of tiposPapel) {
+        const stockActual = stockAgrupado.find(s => s.tipoPapelId === tp.id)?._sum.cantidadActual || 0;
+        
+        const stateKey = `global-${tp.id}-${stockActual <= tp.stockMinimo}`;
+        
+        if (stockActual <= tp.stockMinimo && lastAlertState[`global-${tp.id}`] !== stateKey) {
+          lastAlertState[`global-${tp.id}`] = stateKey;
+
+          const mensaje = `¡ALERTA GLOBAL! El stock total de ${tp.descripcion} (${stockActual} uds) ha caído por debajo del mínimo permitido (${tp.stockMinimo} uds).`;
+          
+          const nuevaAlerta = await prisma.alertaStock.create({
+            data: {
+              tipoPapelId: tp.id,
+              mensaje: mensaje
+            }
+          });
+
+          io.emit('nueva_alerta', {
+            id: nuevaAlerta.id,
+            kioskoId: 'GLOBAL', // Indicador de que es de almacén
+            mensaje: mensaje,
+            severity: 'CRITICA',
+            fecha: nuevaAlerta.fecha
+          });
+        } else if (stockActual > tp.stockMinimo) {
+          if (lastAlertState[`global-${tp.id}`]) {
+            delete lastAlertState[`global-${tp.id}`];
+          }
+        }
+      }
+
+      // 2. MONITORIZACIÓN DE KIOSKOS (Telemetría)
       // Obtener todos los kioskos activos y sus asignaciones para saber el tipo de papel
       const kioskos = await prisma.periferico.findMany({
         where: { estadoOperativo: 'ACTIVO' },

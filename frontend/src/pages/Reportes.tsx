@@ -4,7 +4,10 @@ import {
   getReporteMovimientos, 
   getReporteStockValor, 
   getReporteConsumoArea, 
-  getReporteConsumoAlmacen 
+  getReporteConsumoAlmacen,
+  getReporteMovimientosIngeniero,
+  getReporteKioskosAbastecidos,
+  getReporteIncidentes
 } from '../services/reportesService';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import { format } from 'date-fns';
@@ -123,6 +126,61 @@ const Reportes: React.FC = () => {
           codigoPapel: d.tipoPapel?.codigo || '',
           cantidad: d.cantidad
         }));
+      } else if (tipoReporte === 'movimientosIngeniero') {
+        data = await getReporteMovimientosIngeniero(filters);
+        title = 'Movimientos por Ingeniero';
+        fileName = 'reporte_mov_ingeniero';
+        columns = [
+          { header: 'Fecha', dataKey: 'fechaFormat' },
+          { header: 'Ingeniero', dataKey: 'usuarioNombre' },
+          { header: 'Tipo', dataKey: 'tipoMovimiento' },
+          { header: 'Papel', dataKey: 'codigoPapel' },
+          { header: 'Cantidad', dataKey: 'cantidad' },
+        ];
+        data = data.map((d: any) => ({
+          fechaFormat: format(new Date(d.fechaMovimiento), 'dd/MM/yyyy HH:mm'),
+          usuarioNombre: d.usuario?.nombre || '',
+          tipoMovimiento: d.tipoMovimiento,
+          codigoPapel: d.tipoPapel?.codigo || '',
+          cantidad: d.cantidad
+        }));
+      } else if (tipoReporte === 'kioskosAbastecidos') {
+        data = await getReporteKioskosAbastecidos(filters);
+        title = 'Kioskos Abastecidos';
+        fileName = 'reporte_kioskos_abastecidos';
+        columns = [
+          { header: 'Fecha', dataKey: 'fechaFormat' },
+          { header: 'Kiosko', dataKey: 'kiosko' },
+          { header: 'Papel', dataKey: 'codigoPapel' },
+          { header: 'Cantidad', dataKey: 'cantidad' },
+          { header: 'Ingeniero', dataKey: 'usuarioNombre' },
+        ];
+        data = data.map((d: any) => ({
+          fechaFormat: format(new Date(d.fechaAsignacion), 'dd/MM/yyyy HH:mm'),
+          kiosko: d.periferico?.identificadorUnico || '',
+          codigoPapel: d.tipoPapel?.codigo || '',
+          cantidad: d.cantidadAsignada,
+          usuarioNombre: d.usuario?.nombre || ''
+        }));
+      } else if (tipoReporte === 'incidentesNoAtendidos') {
+        filters.estado = 'ABIERTO';
+        data = await getReporteIncidentes(filters);
+        title = 'Incidentes No Atendidos';
+        fileName = 'reporte_incidentes_abiertos';
+        columns = [
+          { header: 'Fecha', dataKey: 'fechaFormat' },
+          { header: 'Terminal', dataKey: 'terminal' },
+          { header: 'Ingeniero', dataKey: 'ingenieroNombre' },
+          { header: 'Diferencia', dataKey: 'diferencia' },
+          { header: 'Comentarios', dataKey: 'comentarios' },
+        ];
+        data = data.map((d: any) => ({
+          fechaFormat: format(new Date(d.fechaIncidente), 'dd/MM/yyyy HH:mm'),
+          terminal: d.terminal,
+          ingenieroNombre: d.ingeniero?.nombre || '',
+          diferencia: d.diferencia,
+          comentarios: d.comentarios || '-'
+        }));
       }
 
       if (data.length === 0) {
@@ -168,10 +226,13 @@ const Reportes: React.FC = () => {
             <option value="valorStock">Valor de Stock Actual</option>
             <option value="consumoArea">Consumo por Área</option>
             <option value="consumoAlmacen">Consumo por Almacén</option>
+            <option value="movimientosIngeniero">Movimientos por Ingeniero</option>
+            <option value="kioskosAbastecidos">Kioskos Abastecidos</option>
+            <option value="incidentesNoAtendidos">Incidentes No Atendidos</option>
           </select>
         </div>
 
-        {tipoReporte !== 'valorStock' && (
+        {tipoReporte !== 'valorStock' && tipoReporte !== 'incidentesNoAtendidos' && (
           <>
             <div>
               <label className="block text-sm text-gray-400 mb-1">Fecha Inicio</label>

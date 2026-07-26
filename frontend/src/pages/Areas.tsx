@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import { Map, Printer, CheckCircle, AlertCircle, XCircle, Wifi, WifiOff, Battery } from 'lucide-react';
+import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X } from 'lucide-react';
+import api from '../services/api';
 
 interface TipoCompatibilidad {
   tipoPapel: {
@@ -30,31 +30,51 @@ interface Area {
   perifericos: Periferico[];
 }
 
+interface Almacen {
+  id: string;
+  nombre: string;
+  ubicacion: string;
+}
+
 const Areas: React.FC = () => {
   const [areas, setAreas] = useState<Area[]>([]);
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<Record<string, { nivelAtb: number; nivelBtp: number; estadoConexion: string }>>({});
 
+  // Modal states
+  const [selectedKiosko, setSelectedKiosko] = useState<Periferico | null>(null);
+  const [actionType, setActionType] = useState('Cambio de Papel ATB');
+  const [selectedAlmacen, setSelectedAlmacen] = useState('');
+  const [comentarios, setComentarios] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
-    const fetchAreas = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/areas');
-        if (response.data.success) {
-          setAreas(response.data.data);
+        const [resAreas, resAlmacenes] = await Promise.all([
+          api.get('/areas'),
+          api.get('/almacenes')
+        ]);
+        if (resAreas.data.success) {
+          setAreas(resAreas.data.data);
+        }
+        if (resAlmacenes.data.success) {
+          setAlmacenes(resAlmacenes.data.data);
         }
       } catch (error) {
-        console.error('Error fetching areas', error);
+        console.error('Error fetching data', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchAreas();
+    fetchData();
 
     const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
     socket.on('kiosk_telemetry_update', (data) => {
       setLiveData(prev => ({
         ...prev,
-        [data.kioskoId]: {
+        [data.perifericoId || data.kioskoId]: { // Soporte para ambos nombres de campo temporalmente
           nivelAtb: data.nivelAtb,
           nivelBtp: data.nivelBtp,
           estadoConexion: data.estadoConexion
@@ -67,12 +87,41 @@ const Areas: React.FC = () => {
     };
   }, []);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ACTIVO': return <CheckCircle size={16} color="var(--color-success)" />;
-      case 'MANTENIMIENTO': return <AlertCircle size={16} color="var(--color-warning)" />;
-      default: return <XCircle size={16} color="var(--color-danger)" />;
+  const handleRegisterAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKiosko) return;
+
+    if (actionType.includes('Cambio de Papel') && !selectedAlmacen) {
+      alert('Por favor selecciona el almacén de donde proviene el papel.');
+      return;
     }
+
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/intervenciones', {
+        perifericoId: selectedKiosko.id,
+        accion: actionType,
+        almacenOrigenId: actionType.includes('Cambio de Papel') ? selectedAlmacen : undefined,
+        comentarios
+      });
+
+      if (res.data.success) {
+        alert('Acción registrada con éxito.');
+        closeModal();
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error al registrar la acción.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedKiosko(null);
+    setActionType('Cambio de Papel ATB');
+    setSelectedAlmacen('');
+    setComentarios('');
   };
 
   return (
@@ -100,7 +149,7 @@ const Areas: React.FC = () => {
               <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                   {area.perifericos.length === 0 ? (
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>Sin periféricos asignados</p>
+                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>Sin periféricos asignados</p>
                   ) : (
                   area.perifericos.map(p => {
                     const isOnline = (liveData[p.id]?.estadoConexion ?? p.estadoConexion) === 'ONLINE';
@@ -166,12 +215,17 @@ const Areas: React.FC = () => {
                                {btp}%
                              </strong>
                            </div>
-                           {!isOnline && (
-                             <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'gray', textAlign: 'right', fontStyle: 'italic' }}>
-                               *Última lectura conocida
-                             </div>
-                           )}
                         </div>
+
+                        {/* Botón de Intervención */}
+                        <button 
+                          className="btn btn-secondary w-full" 
+                          style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
+                          onClick={() => setSelectedKiosko(p)}
+                        >
+                          <Wrench size={16} />
+                          Registrar Acción
+                        </button>
                       </div>
                     );
                   })
@@ -182,6 +236,82 @@ const Areas: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Modal de Intervención */}
+      {selectedKiosko && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Wrench className="text-blue-500" size={24} />
+                Acción en Sitio
+              </h2>
+              <button className="btn-icon" onClick={closeModal}><X /></button>
+            </div>
+            
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', marginTop: 0 }}>
+              Kiosko: <strong>{selectedKiosko.identificadorUnico}</strong>
+            </p>
+
+            <form onSubmit={handleRegisterAction}>
+              <div className="form-group">
+                <label>Tipo de Acción *</label>
+                <select 
+                  className="input-field" 
+                  value={actionType} 
+                  onChange={e => setActionType(e.target.value)}
+                  required
+                >
+                  <option value="Cambio de Papel ATB">Cambio de Papel ATB</option>
+                  <option value="Cambio de Papel BTP">Cambio de Papel BTP</option>
+                  <option value="Reset Físico (Reinicio)">Reset Físico (Reinicio)</option>
+                  <option value="Limpieza de Rodillos / Sensores">Limpieza de Rodillos / Sensores</option>
+                  <option value="Calibración">Calibración</option>
+                  <option value="Mantenimiento Correctivo (Otro)">Mantenimiento Correctivo (Otro)</option>
+                </select>
+              </div>
+
+              {actionType.includes('Cambio de Papel') && (
+                <div className="form-group">
+                  <label>Origen del Papel (Almacén) *</label>
+                  <select 
+                    className="input-field" 
+                    value={selectedAlmacen} 
+                    onChange={e => setSelectedAlmacen(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Selecciona el Almacén --</option>
+                    {almacenes.map(almacen => (
+                      <option key={almacen.id} value={almacen.id}>
+                        {almacen.nombre} ({almacen.ubicacion})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '0.75rem', color: 'gray' }}>Indica de qué bodega tomaste el nuevo rollo.</span>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Comentarios / Observaciones</label>
+                <textarea 
+                  className="input-field" 
+                  rows={3} 
+                  placeholder="Detalles de la acción realizada..."
+                  value={comentarios}
+                  onChange={e => setComentarios(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={closeModal} disabled={isSubmitting}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Guardando...' : 'Registrar Acción'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

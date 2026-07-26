@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { Package, TrendingUp, AlertTriangle, Layers, Activity, ServerCrash } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Package, TrendingUp, AlertTriangle, Layers, Activity, ServerCrash, PieChart as PieIcon, BarChart2 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 interface TelemetryAlert {
   id: string;
@@ -30,8 +32,13 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [liveAlerts, setLiveAlerts] = useState<TelemetryAlert[]>([]);
+  const [chartData, setChartData] = useState({
+    consumoHistorico: [],
+    stockPorAlmacen: [],
+    consumoPorTipo: []
+  });
   const [activeKiosks, setActiveKiosks] = useState(0);
-  const [pingHistory, setPingHistory] = useState<{ time: string, pings: number }[]>(Array.from({length: 10}, (_, i) => ({ time: '', pings: 0 })));
+  const [pingHistory, setPingHistory] = useState<{ time: string, pings: number }[]>(Array.from({length: 10}, () => ({ time: '', pings: 0 })));
   const [currentPings, setCurrentPings] = useState(0);
   const currentPingsRef = useRef(0);
 
@@ -41,7 +48,7 @@ const Dashboard: React.FC = () => {
 
   const fetchKPIs = async () => {
     try {
-      const response = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/dashboard/kpis');
+      const response = await api.get('/dashboard/kpis');
       if (response.data.success) {
         setKpis(response.data.data);
       }
@@ -52,8 +59,20 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const fetchCharts = async () => {
+    try {
+      const response = await api.get('/dashboard/charts');
+      if (response.data.success) {
+        setChartData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching charts', error);
+    }
+  };
+
   useEffect(() => {
     fetchKPIs();
+    fetchCharts();
 
     // Historial de pings cada 3 segundos para la gráfica
     const interval = setInterval(() => {
@@ -171,20 +190,79 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="card">
-          <h3>Salud Operativa (Mapa Lógico)</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 2</h4>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>25 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 2')).length} Alertas</p>
-            </div>
-            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 3</h4>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>42 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 3')).length} Alertas</p>
-            </div>
-            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0' }}>Terminal 4</h4>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>38 kioskos • {liveAlerts.filter(a => a.mensaje.includes('Terminal 4')).length} Alertas</p>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PieIcon size={20} /> Distribución de Stock</h3>
+          </div>
+          <div style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData.stockPorAlmacen}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="valor"
+                >
+                  {chartData.stockPorAlmacen.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><BarChart2 size={20} /> Consumo Histórico (7 Días)</h3>
+          </div>
+          <div style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData.consumoHistorico} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
+                <XAxis dataKey="fecha" stroke="#9ca3af" fontSize={12} tickMargin={10} />
+                <YAxis stroke="#9ca3af" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                />
+                <Legend />
+                <Bar dataKey="ATB" stackId="a" fill="#3b82f6" name="ATB" />
+                <Bar dataKey="BTP" stackId="a" fill="#10b981" name="BTP" />
+                <Bar dataKey="Otros" stackId="a" fill="#f59e0b" name="Otros" />
+                <Line type="monotone" dataKey="ATB" stroke="#60a5fa" strokeWidth={2} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><BarChart2 size={20} /> Top Papel Consumido</h3>
+          </div>
+          <div style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart layout="vertical" data={chartData.consumoPorTipo} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#374151" />
+                <XAxis type="number" stroke="#9ca3af" fontSize={12} />
+                <YAxis dataKey="nombre" type="category" stroke="#9ca3af" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                />
+                <Bar dataKey="valor" fill="#8b5cf6" name="Cantidad" radius={[0, 4, 4, 0]}>
+                  {chartData.consumoPorTipo.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

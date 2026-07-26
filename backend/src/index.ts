@@ -14,7 +14,10 @@ import asignacionesRoutes from './routes/asignaciones';
 import dashboardRoutes from './routes/dashboard';
 import auditoriaRoutes from './routes/auditoria';
 import reportesRoutes from './routes/reportes';
+import incidentesRoutes from './routes/incidentes';
 import alertasRoutes from './routes/alertas';
+import usuariosRoutes from './routes/usuarios';
+import intervencionesRoutes from './routes/intervenciones';
 import { startKioskSimulator } from './services/KioskSimulator';
 import { startAlertService } from './services/AlertService';
 
@@ -35,7 +38,10 @@ app.use('/api/asignaciones', asignacionesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/reportes', reportesRoutes);
+app.use('/api/incidentes', incidentesRoutes);
 app.use('/api/alertas', alertasRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/intervenciones', intervencionesRoutes);
 
 const server = createServer(app);
 initSocket(server);

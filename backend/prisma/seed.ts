@@ -43,13 +43,57 @@ async function main() {
     console.log('Usuario admin listo.');
   }
 
+  const operadorRole = roles.find((r) => r.nombre === 'Operador');
+  let operadores = [];
+  if (operadorRole) {
+    const passwordHash = await bcrypt.hash('operador123', 10);
+    const u1 = await prisma.usuario.upsert({
+      where: { email: 'ricardo@cun.mx' },
+      update: {},
+      create: {
+        nombre: 'Ricardo Hernandez',
+        email: 'ricardo@cun.mx',
+        passwordHash,
+        rolId: operadorRole.id,
+        turno: 'Mañana',
+        dispositivo: 'Tableta (iPad)',
+      },
+    });
+    const u2 = await prisma.usuario.upsert({
+      where: { email: 'flor@cun.mx' },
+      update: {},
+      create: {
+        nombre: 'Flor Toledo',
+        email: 'flor@cun.mx',
+        passwordHash,
+        rolId: operadorRole.id,
+        turno: 'Tarde',
+        dispositivo: 'Teléfono Celular',
+      },
+    });
+    const u3 = await prisma.usuario.upsert({
+      where: { email: 'sheldon@cun.mx' },
+      update: {},
+      create: {
+        nombre: 'Sheldon Craig',
+        email: 'sheldon@cun.mx',
+        passwordHash,
+        rolId: operadorRole.id,
+        turno: 'Noche',
+        dispositivo: 'Radio Troncalizado / Tableta',
+      },
+    });
+    operadores.push(u1, u2, u3);
+    console.log('Ingenieros de campo (Usuarios) listos.');
+  }
+
   // 3. Crear Tipos de Papel
   const tipoPapel1 = await prisma.tipoPapel.upsert({
-    where: { codigo: 'BTP-0001' },
+    where: { codigo: 'BTP-01' },
     update: {},
     create: {
-      codigo: 'BTP-0001',
-      descripcion: 'Rollos Etiqueta Equipaje (BTP-0001)',
+      codigo: 'BTP-01',
+      descripcion: 'Rollos Etiquet Equipaje ( BTP-01)',
       dimensiones: '21.25" x 2.125"',
       gramaje: '80g',
       material: 'Papel térmico top coated',
@@ -63,16 +107,16 @@ async function main() {
   });
 
   const tipoPapel2 = await prisma.tipoPapel.upsert({
-    where: { codigo: 'ATB-0001' },
+    where: { codigo: 'ATB-01' },
     update: {},
     create: {
-      codigo: 'ATB-0001',
-      descripcion: 'Rollos Pases de Abordar (ATB-0001)',
+      codigo: 'ATB-01',
+      descripcion: 'Rollos Pases de Abordar (ATB-01)',
       dimensiones: '8" x 3.25"',
       gramaje: '105g',
       material: 'Cartulina térmica',
       proveedor: 'SITA',
-      unidadMedida: 'Caja (500pz)',
+      unidadMedida: 'Rollo',
       costoUnitario: 45.00,
       stockMinimo: 20,
       stockMaximo: 200,
@@ -87,27 +131,27 @@ async function main() {
     update: {
       nombre: 'Almacén Central',
       ubicacion: 'Terminal 2',
-      proveedor: 'ASUR',
+      proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000001',
       nombre: 'Almacén Central',
       ubicacion: 'Terminal 2',
       capacidad: 'Grande',
-      proveedor: 'ASUR',
+      proveedor: 'SITA',
     },
   });
 
   const almacenT4 = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000002' },
     update: {
-      nombre: 'Almacén Central',
+      nombre: 'Almacén Local',
       ubicacion: 'Terminal 4',
       proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000002',
-      nombre: 'Almacén Central',
+      nombre: 'Almacén Local',
       ubicacion: 'Terminal 4',
       capacidad: 'Mediana',
       proveedor: 'SITA',
@@ -117,16 +161,16 @@ async function main() {
   const almacenT3 = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000003' },
     update: {
-      nombre: 'Almacén Terminal 3',
-      ubicacion: 'Planta Baja T3',
-      proveedor: 'OTRO',
+      nombre: 'Almacén Local',
+      ubicacion: 'Terminal 3',
+      proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000003',
-      nombre: 'Almacén Terminal 3',
-      ubicacion: 'Planta Baja T3',
+      nombre: 'Almacén Local',
+      ubicacion: 'Terminal 3',
       capacidad: 'Mediana',
-      proveedor: 'OTRO',
+      proveedor: 'SITA',
     },
   });
   console.log('Almacenes listos.');
@@ -138,44 +182,69 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000003',
       nombre: 'Mostradores Check-in',
-      terminal: 'Terminal 2',
+      terminal: 'Varias',
       zona: 'Público',
     },
   });
 
-  const areaAbordaje = await prisma.areaAeropuerto.upsert({
+  const areaT3 = await prisma.areaAeropuerto.upsert({
     where: { id: '00000000-0000-0000-0000-000000000004' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000004',
-      nombre: 'Salas de Abordaje',
+      nombre: 'Kioskos Terminal 3',
       terminal: 'Terminal 3',
-      zona: 'Estéril',
+      zona: 'Público',
     },
   });
 
-  await prisma.periferico.upsert({
-    where: { identificadorUnico: 'PRN-CUN-T2-001' },
+  const areaT4 = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000005' },
     update: {},
     create: {
-      identificadorUnico: 'PRN-CUN-T2-001',
-      marca: 'Access-IS',
-      modelo: 'BGR750',
-      areaId: areaCheckIn.id,
+      id: '00000000-0000-0000-0000-000000000005',
+      nombre: 'Kioskos Terminal 4',
+      terminal: 'Terminal 4',
+      zona: 'Público',
+    },
+  });
+
+  // Generar 60 kioskos para Terminal 3 (CUN3AKA001 a CUN3AKA060)
+  const perifsT3 = [];
+  for (let i = 1; i <= 60; i++) {
+    const num = i.toString().padStart(3, '0');
+    perifsT3.push({
+      identificadorUnico: `CUN3AKA${num}`,
+      marca: 'SITA',
+      modelo: 'Kiosk V2',
+      areaId: areaT3.id,
       estadoOperativo: 'ACTIVO',
-    },
+      nivelAtb: 100,
+      nivelBtp: 100,
+    });
+  }
+  await prisma.periferico.createMany({
+    data: perifsT3,
+    skipDuplicates: true,
   });
 
-  await prisma.periferico.upsert({
-    where: { identificadorUnico: 'PRN-CUN-T3-002' },
-    update: {},
-    create: {
-      identificadorUnico: 'PRN-CUN-T3-002',
-      marca: 'Custom',
-      modelo: 'KPM302H',
-      areaId: areaAbordaje.id,
-      estadoOperativo: 'MANTENIMIENTO',
-    },
+  // Generar 74 kioskos para Terminal 4 (CUN4AKA001 a CUN4AKA074)
+  const perifsT4 = [];
+  for (let i = 1; i <= 74; i++) {
+    const num = i.toString().padStart(3, '0');
+    perifsT4.push({
+      identificadorUnico: `CUN4AKA${num}`,
+      marca: 'SITA',
+      modelo: 'Kiosk V3',
+      areaId: areaT4.id,
+      estadoOperativo: 'ACTIVO',
+      nivelAtb: 100,
+      nivelBtp: 100,
+    });
+  }
+  await prisma.periferico.createMany({
+    data: perifsT4,
+    skipDuplicates: true,
   });
   console.log('Áreas y Periféricos listos.');
 
