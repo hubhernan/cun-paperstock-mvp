@@ -70,7 +70,7 @@ const Areas: React.FC = () => {
     };
     fetchData();
 
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+    const socket: Socket = io((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')));
     socket.on('kiosk_telemetry_update', (data) => {
       setLiveData(prev => ({
         ...prev,

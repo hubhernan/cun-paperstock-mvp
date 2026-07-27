@@ -34,8 +34,8 @@ const Usuarios: React.FC = () => {
     const fetchAuditoria = async () => {
       try {
         const [resAudit, resUsr] = await Promise.all([
-          axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/auditoria', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/usuarios', { headers: { Authorization: `Bearer ${token}` } })
+          axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/auditoria', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/usuarios', { headers: { Authorization: `Bearer ${token}` } })
         ]);
         if (resAudit.data.success) setLogs(resAudit.data.data);
         if (resUsr.data.success) setUsuarios(resUsr.data.data);

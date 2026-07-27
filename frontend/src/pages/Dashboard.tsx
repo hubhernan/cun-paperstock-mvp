@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
     }, 3000);
 
     // Conectar a Socket.io
-    const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000');
+    const socket: Socket = io((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')));
 
     socket.on('stockUpdate', (data) => {
       console.log('Evento de inventario recibido en tiempo real:', data);
