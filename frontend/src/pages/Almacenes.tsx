@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, MapPin } from 'lucide-react';
+import { Plus, MapPin, X, Package } from 'lucide-react';
 
 interface Almacen {
   id: string;
@@ -18,6 +18,10 @@ interface Almacen {
 const Almacenes: React.FC = () => {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAlmacen, setSelectedAlmacen] = useState<Almacen | null>(null);
+  const [stockDetalle, setStockDetalle] = useState<any[]>([]);
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchAlmacenes = async () => {
@@ -34,6 +38,22 @@ const Almacenes: React.FC = () => {
     };
     fetchAlmacenes();
   }, []);
+
+  const handleVerStock = async (almacen: Almacen) => {
+    setSelectedAlmacen(almacen);
+    setModalOpen(true);
+    setLoadingStock(true);
+    try {
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + `/api/almacenes/${almacen.id}/stock`);
+      if (response.data.success) {
+        setStockDetalle(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching stock detalle', error);
+    } finally {
+      setLoadingStock(false);
+    }
+  };
 
   return (
     <div>
@@ -101,7 +121,11 @@ const Almacenes: React.FC = () => {
 
               <div style={{ marginTop: 'auto' }}>
                 <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem' }}><strong>Capacidad:</strong> {almacen.capacidad || 'N/A'}</p>
-                <button className="btn btn-primary" style={{ width: '100%', background: 'var(--color-secondary)' }}>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ width: '100%', background: 'var(--color-secondary)' }}
+                  onClick={() => handleVerStock(almacen)}
+                >
                   Ver Stock a Detalle
                 </button>
               </div>
@@ -109,6 +133,86 @@ const Almacenes: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Modal de Stock a Detalle */}
+      {modalOpen && selectedAlmacen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Package size={20} style={{ color: 'var(--color-primary)' }} />
+                Stock a Detalle: {selectedAlmacen.nombre}
+              </h3>
+              <button className="btn-icon" onClick={() => setModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1rem 0' }}>
+              {loadingStock ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+                  Cargando detalle de stock...
+                </div>
+              ) : stockDetalle.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+                  No hay lotes con stock en este almacén.
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>Lote</th>
+                        <th>Cantidad</th>
+                        <th>Cajas</th>
+                        <th>Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockDetalle.map((stockItem) => {
+                        const esATB = stockItem.tipoPapel?.codigo?.includes('ATB');
+                        const cajas = Math.floor(stockItem.cantidadActual / (stockItem.tipoPapel?.cantidadPorCaja || 1));
+                        const rollosSueltos = stockItem.cantidadActual % (stockItem.tipoPapel?.cantidadPorCaja || 1);
+                        return (
+                          <tr key={stockItem.id}>
+                            <td style={{ fontWeight: 500, color: esATB ? 'var(--color-primary)' : 'var(--color-warning)' }}>
+                              {stockItem.tipoPapel?.codigo || 'N/A'}
+                            </td>
+                            <td>{stockItem.lote || 'Sin Lote'}</td>
+                            <td style={{ fontWeight: 'bold' }}>{stockItem.cantidadActual}</td>
+                            <td>
+                              {cajas > 0 ? `${cajas} caja(s)` : ''} {rollosSueltos > 0 ? `+ ${rollosSueltos} rollo(s)` : ''}
+                            </td>
+                            <td>
+                              <span style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                borderRadius: '12px', 
+                                fontSize: '0.75rem', 
+                                fontWeight: 600,
+                                background: esATB ? '#e0e7ff' : '#fef3c7',
+                                color: esATB ? 'var(--color-primary)' : 'var(--color-warning)'
+                              }}>
+                                {esATB ? 'ATB' : 'BTP'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button className="btn" onClick={() => setModalOpen(false)} style={{ background: '#e2e8f0', color: 'var(--color-text)' }}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
