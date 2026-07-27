@@ -116,46 +116,43 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
     }
   };
 
-  // Escáner deshabilitado temporalmente
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div className="modal-overlay">
+      <div className="modal-content">
         
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2 m-0">
-            {tipoMovimiento === 'ENTRADA' && <span className="text-green-400">▼ Nueva Entrada</span>}
-            {tipoMovimiento === 'SALIDA' && <span className="text-yellow-400">▲ Nueva Salida</span>}
-            {tipoMovimiento === 'TRANSFERENCIA' && <span className="text-blue-400">⇄ Transferencia</span>}
+        <div className="modal-header">
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {tipoMovimiento === 'ENTRADA' && <span style={{ color: 'var(--color-success)' }}>▼ Nueva Entrada</span>}
+            {tipoMovimiento === 'SALIDA' && <span style={{ color: 'var(--color-warning)' }}>▲ Nueva Salida</span>}
+            {tipoMovimiento === 'TRANSFERENCIA' && <span style={{ color: 'var(--color-primary-light)' }}>⇄ Transferencia</span>}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white bg-transparent border-none cursor-pointer">
+          <button onClick={onClose} className="btn-icon">
             <X size={20} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5">
-
+        <div>
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded border border-red-500/30 flex items-center gap-2 text-sm">
+            <div style={{ padding: '0.75rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '4px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
               <AlertCircle size={16} /> {error}
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-4 p-3 bg-green-500/20 text-green-400 rounded border border-green-500/30 flex items-center gap-2 text-sm">
+            <div style={{ padding: '0.75rem', backgroundColor: '#d1fae5', color: '#047857', borderRadius: '4px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
               <CheckCircle2 size={16} /> {successMsg}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div>
             {(tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA') && (
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Almacén Origen</label>
-                <select className="input-field w-full" value={almacenOrigenId} onChange={e => setAlmacenOrigenId(e.target.value)}>
+              <div className="form-group">
+                <label className="form-label">Almacén Origen</label>
+                <select className="form-input" value={almacenOrigenId} onChange={e => setAlmacenOrigenId(e.target.value)}>
                   <option value="">Selecciona origen...</option>
                   {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
@@ -163,9 +160,9 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
             )}
 
             {(tipoMovimiento === 'ENTRADA' || tipoMovimiento === 'TRANSFERENCIA') && (
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Almacén Destino</label>
-                <select className="input-field w-full" value={almacenDestinoId} onChange={e => setAlmacenDestinoId(e.target.value)}>
+              <div className="form-group">
+                <label className="form-label">Almacén Destino</label>
+                <select className="form-input" value={almacenDestinoId} onChange={e => setAlmacenDestinoId(e.target.value)}>
                   <option value="">Selecciona destino...</option>
                   {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
@@ -173,31 +170,31 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
             )}
 
             {tipoMovimiento === 'ENTRADA' && (
-              <div className="bg-gray-800 p-3 rounded border border-gray-700">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-semibold text-gray-300">Asignación de Lote</label>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Asignación de Lote</label>
                   {!creandoLote && (
-                    <button onClick={() => setCreandoLote(true)} className="text-xs text-blue-400 hover:text-blue-300 bg-transparent border-none cursor-pointer flex items-center gap-1">
+                    <button onClick={() => setCreandoLote(true)} style={{ background: 'none', border: 'none', color: 'var(--color-primary-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
                       <Plus size={12} /> Nuevo Lote
                     </button>
                   )}
                 </div>
                 
                 {creandoLote ? (
-                  <div className="space-y-2 mt-2">
-                    <select className="input-field w-full text-sm" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <select className="form-input" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
                       <option value="">1. Selecciona Papel...</option>
                       {tiposPapel.map(p => <option key={p.id} value={p.id}>{p.codigo}</option>)}
                     </select>
-                    <input type="text" placeholder="2. Número de Lote (ej. LOTE-123)" className="input-field w-full text-sm" value={nuevoLoteNum} onChange={e => setNuevoLoteNum(e.target.value)} />
-                    <input type="date" className="input-field w-full text-sm" value={nuevoLoteCad} onChange={e => setNuevoLoteCad(e.target.value)} title="Fecha de Caducidad (Opcional)" />
-                    <div className="flex gap-2 mt-2">
-                      <button className="btn btn-primary flex-1 text-xs py-1" onClick={handleCrearLote} disabled={loading}>Guardar Lote</button>
-                      <button className="btn bg-gray-600 hover:bg-gray-500 flex-1 text-xs py-1" onClick={() => setCreandoLote(false)}>Cancelar</button>
+                    <input type="text" placeholder="2. Número de Lote (ej. LOTE-123)" className="form-input" value={nuevoLoteNum} onChange={e => setNuevoLoteNum(e.target.value)} />
+                    <input type="date" className="form-input" value={nuevoLoteCad} onChange={e => setNuevoLoteCad(e.target.value)} title="Fecha de Caducidad (Opcional)" />
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button className="btn btn-primary" style={{ flex: 1, padding: '0.25rem' }} onClick={handleCrearLote} disabled={loading}>Guardar Lote</button>
+                      <button className="btn" style={{ flex: 1, padding: '0.25rem', backgroundColor: '#94a3b8', color: 'white' }} onClick={() => setCreandoLote(false)}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
-                  <select className="input-field w-full" value={loteId} onChange={e => {
+                  <select className="form-input" value={loteId} onChange={e => {
                     setLoteId(e.target.value);
                     const selectedLote = lotes.find(l => l.id === e.target.value);
                     if (selectedLote) setTipoPapelId(selectedLote.tipoPapelId);
@@ -209,19 +206,22 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
               </div>
             )}
 
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Tipo de Papel</label>
-              <select className="input-field w-full" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
+            <div className="form-group">
+              <label className="form-label">Tipo de Papel</label>
+              <select className="form-input" value={tipoPapelId} onChange={e => setTipoPapelId(e.target.value)}>
                 <option value="">Selecciona papel...</option>
                 {tiposPapel.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.descripcion}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Cantidad</label>
-              <input type="number" min="1" className="input-field w-full" value={cantidad} onChange={e => setCantidad(Number(e.target.value))} />
+            
+            <div className="form-group">
+              <label className="form-label">Cantidad</label>
+              <input type="number" min="1" className="form-input" value={cantidad} onChange={e => setCantidad(Number(e.target.value))} />
             </div>
+            
             <button 
-              className="btn btn-primary w-full mt-4 flex justify-center items-center gap-2"
+              className="btn btn-primary"
+              style={{ width: '100%', marginTop: '1rem', display: 'flex', justifyContent: 'center' }}
               onClick={() => registrarMovimiento(tipoPapelId)}
               disabled={loading}
             >
