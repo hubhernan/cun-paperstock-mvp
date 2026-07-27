@@ -291,38 +291,61 @@ async function main() {
 
   // 7. Crear Movimientos y Auditoría si tenemos usuario
   if (adminUser) {
-    // Solo insertamos movimientos si no existen (simplificado, contamos movimientos)
+    // Generamos datos históricos si hay menos de 50 (para asegurar que siempre haya suficientes)
     const movsCount = await prisma.movimientoInventario.count();
-    if (movsCount === 0) {
+    if (movsCount < 50) {
+      const historialMovimientos = [];
+      const hoy = new Date();
+      
+      for (let i = 0; i < 100; i++) {
+        // Generar fecha aleatoria en los últimos 90 días
+        const diasAtras = Math.floor(Math.random() * 90);
+        const fechaAleatoria = new Date(hoy);
+        fechaAleatoria.setDate(fechaAleatoria.getDate() - diasAtras);
+        
+        // Randomizar tipo de papel (BTP o ATB)
+        const isBTP = Math.random() > 0.5;
+        const papelId = isBTP ? tipoPapel1.id : tipoPapel2.id;
+        
+        // Randomizar tipo de movimiento
+        const tipos = ['ENTRADA', 'SALIDA', 'TRANSFERENCIA'];
+        const tipoAleatorio = tipos[Math.floor(Math.random() * tipos.length)];
+        
+        let origenId = null;
+        let destinoId = null;
+        let cantidad = 0;
+        let comentario = '';
+        
+        if (tipoAleatorio === 'ENTRADA') {
+          destinoId = almacenCentral.id;
+          cantidad = Math.floor(Math.random() * 500) + 100;
+          comentario = 'Reabastecimiento de proveedor (Simulado)';
+        } else if (tipoAleatorio === 'SALIDA') {
+          origenId = Math.random() > 0.5 ? almacenCentral.id : almacenT3.id;
+          cantidad = Math.floor(Math.random() * 50) + 10;
+          comentario = 'Uso operativo en mostradores/kioskos (Simulado)';
+        } else { // TRANSFERENCIA
+          origenId = almacenCentral.id;
+          destinoId = Math.random() > 0.5 ? almacenT3.id : almacenT4.id;
+          cantidad = Math.floor(Math.random() * 100) + 20;
+          comentario = 'Transferencia hacia terminal (Simulado)';
+        }
+
+        historialMovimientos.push({
+          tipoPapelId: papelId,
+          loteId: lote1.id,
+          almacenOrigenId: origenId,
+          almacenDestinoId: destinoId,
+          tipoMovimiento: tipoAleatorio,
+          cantidad: cantidad,
+          usuarioId: adminUser.id,
+          fechaMovimiento: fechaAleatoria,
+          comentarios: comentario,
+        });
+      }
+
       await prisma.movimientoInventario.createMany({
-        data: [
-          {
-            tipoPapelId: tipoPapel1.id,
-            loteId: lote1.id,
-            almacenDestinoId: almacenCentral.id,
-            tipoMovimiento: 'ENTRADA',
-            cantidad: 500,
-            usuarioId: adminUser.id,
-            comentarios: 'Recepcion inicial de proveedor',
-          },
-          {
-            tipoPapelId: tipoPapel1.id,
-            almacenOrigenId: almacenCentral.id,
-            almacenDestinoId: almacenT3.id,
-            tipoMovimiento: 'TRANSFERENCIA',
-            cantidad: 50,
-            usuarioId: adminUser.id,
-            comentarios: 'Reabastecimiento Terminal 3',
-          },
-          {
-            tipoPapelId: tipoPapel2.id,
-            almacenOrigenId: almacenCentral.id,
-            tipoMovimiento: 'SALIDA',
-            cantidad: 10,
-            usuarioId: adminUser.id,
-            comentarios: 'Uso operativo en mostradores',
-          },
-        ],
+        data: historialMovimientos,
       });
 
       await prisma.auditoriaAcciones.createMany({
