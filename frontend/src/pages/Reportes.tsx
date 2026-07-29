@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, FileSpreadsheet } from 'lucide-react';
+import { FileText, FileSpreadsheet, Search, Eraser } from 'lucide-react';
 import { 
   getReporteMovimientos, 
   getReporteStockValor, 
@@ -9,7 +9,7 @@ import {
   getReporteKioskosAbastecidos,
   getReporteIncidentes
 } from '../services/reportesService';
-import { exportToPDF, exportToExcel } from '../utils/exportUtils';
+import { exportToExcel } from '../utils/exportUtils';
 import { format } from 'date-fns';
 import api from '../services/api';
 
@@ -24,6 +24,12 @@ const Reportes: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Report results state
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportColumns, setReportColumns] = useState<{header: string, dataKey: string}[]>([]);
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportFileName, setReportFileName] = useState('');
+
   useEffect(() => {
     const fetchFiltros = async () => {
       try {
@@ -31,8 +37,8 @@ const Reportes: React.FC = () => {
           api.get('/areas'),
           api.get('/almacenes')
         ]);
-        setAreas(resAreas.data);
-        setAlmacenes(resAlmacenes.data);
+        setAreas(resAreas.data.data || resAreas.data);
+        setAlmacenes(resAlmacenes.data.data || resAlmacenes.data);
       } catch (err) {
         console.error('Error cargando filtros', err);
       }
@@ -40,9 +46,12 @@ const Reportes: React.FC = () => {
     fetchFiltros();
   }, []);
 
-  const handleExport = async (formatType: 'pdf' | 'excel') => {
+  const handleGenerate = async () => {
     setLoading(true);
     setError('');
+    setReportData([]);
+    setReportColumns([]);
+    
     try {
       let data = [];
       let columns: any[] = [];
@@ -121,7 +130,7 @@ const Reportes: React.FC = () => {
         ];
         data = data.map((d: any) => ({
           fechaFormat: format(new Date(d.fechaMovimiento), 'dd/MM/yyyy HH:mm'),
-          almacenNombre: d.almacenOrigen?.nombre || '',
+          almacenNombre: d.almacenOrigen ? `${d.almacenOrigen.nombre} - ${d.almacenOrigen.ubicacion}` : '',
           proveedor: d.almacenOrigen?.proveedor || '-',
           codigoPapel: d.tipoPapel?.codigo || '',
           cantidad: d.cantidad
@@ -146,21 +155,19 @@ const Reportes: React.FC = () => {
         }));
       } else if (tipoReporte === 'kioskosAbastecidos') {
         data = await getReporteKioskosAbastecidos(filters);
-        title = 'Kioskos Abastecidos';
+        title = 'Kioskos Abastecidos (Intervenciones)';
         fileName = 'reporte_kioskos_abastecidos';
         columns = [
           { header: 'Fecha', dataKey: 'fechaFormat' },
           { header: 'Kiosko', dataKey: 'kiosko' },
-          { header: 'Papel', dataKey: 'codigoPapel' },
-          { header: 'Cantidad', dataKey: 'cantidad' },
+          { header: 'Acción Realizada', dataKey: 'accion' },
           { header: 'Ingeniero', dataKey: 'usuarioNombre' },
         ];
         data = data.map((d: any) => ({
-          fechaFormat: format(new Date(d.fechaAsignacion), 'dd/MM/yyyy HH:mm'),
+          fechaFormat: format(new Date(d.fecha), 'dd/MM/yyyy HH:mm'),
           kiosko: d.periferico?.identificadorUnico || '',
-          codigoPapel: d.tipoPapel?.codigo || '',
-          cantidad: d.cantidadAsignada,
-          usuarioNombre: d.usuario?.nombre || ''
+          accion: d.accion,
+          usuarioNombre: d.ingeniero?.nombre || ''
         }));
       } else if (tipoReporte === 'incidentesNoAtendidos') {
         filters.estado = 'ABIERTO';
@@ -185,14 +192,11 @@ const Reportes: React.FC = () => {
 
       if (data.length === 0) {
         setError('No se encontraron registros para los filtros seleccionados.');
-        setLoading(false);
-        return;
-      }
-
-      if (formatType === 'pdf') {
-        exportToPDF(title, columns, data, fileName);
       } else {
-        exportToExcel(data, title, fileName);
+        setReportData(data);
+        setReportColumns(columns);
+        setReportTitle(title);
+        setReportFileName(fileName);
       }
 
     } catch (err) {
@@ -203,24 +207,36 @@ const Reportes: React.FC = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (reportData.length > 0) {
+      exportToExcel(reportData, reportTitle, reportFileName);
+    }
+  };
+
+  const handleClear = () => {
+    setReportData([]);
+    setReportColumns([]);
+    setError('');
+  };
+
   return (
     <div className="card p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2" style={{ margin: 0 }}>
           <FileText className="text-blue-400" />
           Módulo de Reportes Avanzados
         </h1>
       </div>
 
-      {error && <div className="bg-red-500/20 text-red-300 p-3 rounded mb-4">{error}</div>}
+      {error && <div style={{ padding: '0.75rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '4px', marginBottom: '1rem' }}>{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Tipo de Reporte</label>
+          <label className="form-label">Tipo de Reporte</label>
           <select 
             value={tipoReporte} 
             onChange={(e) => setTipoReporte(e.target.value)}
-            className="input-field w-full"
+            className="form-input"
           >
             <option value="movimientos">Historial de Movimientos</option>
             <option value="valorStock">Valor de Stock Actual</option>
@@ -235,21 +251,21 @@ const Reportes: React.FC = () => {
         {tipoReporte !== 'valorStock' && tipoReporte !== 'incidentesNoAtendidos' && (
           <>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Fecha Inicio</label>
+              <label className="form-label">Fecha Inicio</label>
               <input 
                 type="date" 
                 value={fechaInicio} 
                 onChange={(e) => setFechaInicio(e.target.value)} 
-                className="input-field w-full"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Fecha Fin</label>
+              <label className="form-label">Fecha Fin</label>
               <input 
                 type="date" 
                 value={fechaFin} 
                 onChange={(e) => setFechaFin(e.target.value)} 
-                className="input-field w-full"
+                className="form-input"
               />
             </div>
           </>
@@ -257,11 +273,11 @@ const Reportes: React.FC = () => {
 
         {tipoReporte === 'consumoArea' && (
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Filtrar por Área</label>
+            <label className="form-label">Filtrar por Área</label>
             <select 
               value={areaId} 
               onChange={(e) => setAreaId(e.target.value)}
-              className="input-field w-full"
+              className="form-input"
             >
               <option value="">Todas las Áreas</option>
               {areas.map(a => (
@@ -273,39 +289,78 @@ const Reportes: React.FC = () => {
 
         {tipoReporte === 'consumoAlmacen' && (
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Filtrar por Almacén</label>
+            <label className="form-label">Filtrar por Almacén</label>
             <select 
               value={almacenId} 
               onChange={(e) => setAlmacenId(e.target.value)}
-              className="input-field w-full"
+              className="form-input"
             >
               <option value="">Todos los Almacenes</option>
               {almacenes.map(a => (
-                <option key={a.id} value={a.id}>{a.nombre}</option>
+                <option key={a.id} value={a.id}>{a.nombre} - {a.ubicacion}</option>
               ))}
             </select>
           </div>
         )}
       </div>
 
-      <div className="flex gap-4">
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
         <button 
-          className="btn btn-primary flex items-center gap-2"
-          onClick={() => handleExport('pdf')}
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          onClick={handleGenerate}
           disabled={loading}
         >
-          <FileText size={20} />
-          {loading ? 'Generando...' : 'Exportar a PDF'}
+          <Search size={18} />
+          {loading ? 'Generando...' : 'Generar Reporte'}
         </button>
         <button 
-          className="btn btn-secondary flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-          onClick={() => handleExport('excel')}
-          disabled={loading}
+          className="btn"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#e2e8f0', color: '#334155' }}
+          onClick={handleClear}
+          disabled={loading || reportData.length === 0}
         >
-          <FileSpreadsheet size={20} />
-          {loading ? 'Generando...' : 'Exportar a Excel'}
+          <Eraser size={18} />
+          Limpiar
         </button>
       </div>
+
+      {reportData.length > 0 && (
+        <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--color-primary-dark)' }}>Resultados: {reportTitle}</h3>
+            <button 
+              className="btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white' }}
+              onClick={handleExportExcel}
+            >
+              <FileSpreadsheet size={18} />
+              Exportar a Excel
+            </button>
+          </div>
+
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {reportColumns.map((col, idx) => (
+                    <th key={idx}>{col.header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {reportData.map((row, idx) => (
+                  <tr key={idx}>
+                    {reportColumns.map((col, cIdx) => (
+                      <td key={cIdx}>{row[col.dataKey]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

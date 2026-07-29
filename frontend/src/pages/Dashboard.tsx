@@ -111,7 +111,24 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  if (loading) return <div>Cargando dashboard...</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: '1rem' }}>
+        <div className="skeleton skeleton-title"></div>
+        <div className="skeleton skeleton-text short mb-8"></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div className="skeleton skeleton-box"></div>
+          <div className="skeleton skeleton-box"></div>
+          <div className="skeleton skeleton-box"></div>
+          <div className="skeleton skeleton-box"></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          <div className="skeleton skeleton-box" style={{ height: 300 }}></div>
+          <div className="skeleton skeleton-box" style={{ height: 300 }}></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -123,43 +140,43 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 0 }}>
-          <div style={{ padding: '1rem', background: '#e0e7ff', color: 'var(--color-primary)', borderRadius: '50%' }}>
-            <Package size={24} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: 0 }}>
+          <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', color: 'var(--color-primary)', borderRadius: '16px', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8)' }}>
+            <Package size={28} />
           </div>
           <div>
-            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Total Tipos de Papel</p>
-            <h2 style={{ margin: 0 }}>{kpis.totalTiposPapel}</h2>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Tipos de Papel</p>
+            <h2 style={{ margin: '0.25rem 0 0 0', fontSize: '2rem' }}>{kpis.totalTiposPapel}</h2>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 0 }}>
-          <div style={{ padding: '1rem', background: '#dcfce7', color: 'var(--color-success)', borderRadius: '50%' }}>
-            <Layers size={24} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: 0 }}>
+          <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', color: 'var(--color-success)', borderRadius: '16px', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8)' }}>
+            <Layers size={28} />
           </div>
           <div>
-            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Stock Total (Unidades)</p>
-            <h2 style={{ margin: 0 }}>{kpis.stockTotal.toLocaleString()}</h2>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Stock Total</p>
+            <h2 style={{ margin: '0.25rem 0 0 0', fontSize: '2rem' }}>{kpis.stockTotal.toLocaleString()}</h2>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 0 }}>
-          <div style={{ padding: '1rem', background: '#fef3c7', color: 'var(--color-warning)', borderRadius: '50%' }}>
-            <TrendingUp size={24} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: 0 }}>
+          <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', color: 'var(--color-warning)', borderRadius: '16px', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8)' }}>
+            <TrendingUp size={28} />
           </div>
           <div>
-            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Consumo Hoy</p>
-            <h2 style={{ margin: 0 }}>{kpis.consumoHoy.toLocaleString()}</h2>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Consumo Hoy</p>
+            <h2 style={{ margin: '0.25rem 0 0 0', fontSize: '2rem' }}>{kpis.consumoHoy.toLocaleString()}</h2>
           </div>
         </div>
 
-        <div className={`card ${kpis.alertasStock > 0 ? 'alert-pulse' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 0, border: kpis.alertasStock > 0 ? '1px solid var(--color-danger)' : undefined }}>
-          <div style={{ padding: '1rem', background: '#fee2e2', color: 'var(--color-danger)', borderRadius: '50%' }}>
-            <AlertTriangle size={24} />
+        <div className={`card ${kpis.alertasStock > 0 ? 'alert-pulse' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: 0 }}>
+          <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)', color: 'var(--color-danger)', borderRadius: '16px', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8)' }}>
+            <AlertTriangle size={28} />
           </div>
           <div>
-            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Alertas de Stock</p>
-            <h2 style={{ margin: 0 }}>{kpis.alertasStock}</h2>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Alertas de Stock</p>
+            <h2 style={{ margin: '0.25rem 0 0 0', fontSize: '2rem' }}>{kpis.alertasStock}</h2>
           </div>
         </div>
       </div>
@@ -234,10 +251,20 @@ const Dashboard: React.FC = () => {
                   contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 />
                 <Legend />
-                <Bar dataKey="ATB" stackId="a" fill="#3b82f6" name="ATB" />
-                <Bar dataKey="BTP" stackId="a" fill="#10b981" name="BTP" />
-                <Bar dataKey="Otros" stackId="a" fill="#f59e0b" name="Otros" />
-                <Line type="monotone" dataKey="ATB" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                <Bar dataKey="ATB" stackId="a" fill="url(#colorATB)" name="ATB" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="BTP" stackId="a" fill="url(#colorBTP)" name="BTP" />
+                <Bar dataKey="Otros" stackId="a" fill="#f59e0b" name="Otros" radius={[4, 4, 0, 0]} />
+                <Line type="monotone" dataKey="ATB" stroke="#60a5fa" strokeWidth={3} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                <defs>
+                  <linearGradient id="colorATB" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={1}/>
+                  </linearGradient>
+                  <linearGradient id="colorBTP" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#059669" stopOpacity={1}/>
+                  </linearGradient>
+                </defs>
               </ComposedChart>
             </ResponsiveContainer>
           </div>

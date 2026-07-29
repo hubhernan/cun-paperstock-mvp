@@ -41,6 +41,7 @@ const Areas: React.FC = () => {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<Record<string, { nivelAtb: number; nivelBtp: number; estadoConexion: string }>>({});
+  const [filterArea, setFilterArea] = useState<string>('Todas');
 
   // Modal states
   const [selectedKiosko, setSelectedKiosko] = useState<Periferico | null>(null);
@@ -126,8 +127,33 @@ const Areas: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2>Directorio de Áreas y Periféricos</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Directorio de Áreas y Periféricos</h2>
+        </div>
+        
+        {/* Filtros de Área */}
+        {!loading && areas.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button 
+              className={`badge ${filterArea === 'Todas' ? 'badge-primary' : ''}`} 
+              style={{ cursor: 'pointer', border: '1px solid #e2e8f0', background: filterArea === 'Todas' ? '' : 'white', color: filterArea === 'Todas' ? '' : 'var(--color-text-muted)', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+              onClick={() => setFilterArea('Todas')}
+            >
+              Todas las Áreas
+            </button>
+            {areas.map(a => (
+              <button 
+                key={a.id}
+                className={`badge ${filterArea === a.id ? 'badge-primary' : ''}`}
+                style={{ cursor: 'pointer', border: '1px solid #e2e8f0', background: filterArea === a.id ? '' : 'white', color: filterArea === a.id ? '' : 'var(--color-text-muted)', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                onClick={() => setFilterArea(a.id)}
+              >
+                {a.nombre}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -136,7 +162,7 @@ const Areas: React.FC = () => {
         ) : areas.length === 0 ? (
           <div className="card">No hay áreas registradas.</div>
         ) : (
-          areas.map(area => (
+          areas.filter(area => filterArea === 'Todas' || area.id === filterArea).map(area => (
             <div key={area.id} className="card" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                 <Map size={20} color="var(--color-primary)" />
@@ -146,7 +172,7 @@ const Areas: React.FC = () => {
                 </span>
               </div>
               
-              <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+              <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', paddingRight: '0.5rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                   {area.perifericos.length === 0 ? (
                      <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>Sin periféricos asignados</p>
@@ -204,6 +230,7 @@ const Areas: React.FC = () => {
                              </div>
                              <strong style={{ fontSize: '1.1rem', color: !isOnline ? 'gray' : atb < 10 ? 'red' : atb <= 20 ? 'orange' : 'green' }}>
                                {atb}%
+                               {!isOnline && <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 'normal', marginTop: '-4px' }}>(Últ. registro)</span>}
                              </strong>
                            </div>
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -213,6 +240,7 @@ const Areas: React.FC = () => {
                              </div>
                              <strong style={{ fontSize: '1.1rem', color: !isOnline ? 'gray' : btp < 10 ? 'red' : btp <= 20 ? 'orange' : 'green' }}>
                                {btp}%
+                               {!isOnline && <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 'normal', marginTop: '-4px' }}>(Últ. registro)</span>}
                              </strong>
                            </div>
                         </div>

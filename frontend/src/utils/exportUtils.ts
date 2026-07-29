@@ -39,7 +39,11 @@ export const exportToExcel = (
 ) => {
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  
+  // Sheet names cannot exceed 31 characters in Excel
+  const safeSheetName = sheetName.substring(0, 31);
+  
+  XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
   
   XLSX.writeFile(workbook, `${fileName}.xlsx`);
 };

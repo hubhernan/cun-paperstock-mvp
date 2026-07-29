@@ -64,12 +64,12 @@ const Layout: React.FC = () => {
             </>
           )}
         </nav>
-        <div className="p-4 border-t border-white/10">
+        <div className="sidebar-footer">
           <div className="mb-4 px-2">
             <p className="text-sm font-semibold">{user?.nombre}</p>
             <p className="text-xs text-white/60">{user?.rol}</p>
           </div>
-          <button onClick={logout} className="nav-link" style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255, 255, 255, 0.7)', padding: '0.75rem 1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button onClick={logout} className="nav-link" style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255, 255, 255, 0.7)', padding: '0.85rem 1.25rem', display: 'flex', gap: '0.85rem', alignItems: 'center' }}>
             <LogOut size={20} />
             <span style={{ fontSize: '1rem', fontFamily: 'inherit' }}>Cerrar Sesión</span>
           </button>
@@ -95,29 +95,29 @@ const Layout: React.FC = () => {
                 </button>
 
                 {showDropdown && (
-                  <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-xl z-50">
-                    <div className="p-3 border-b border-gray-700 font-semibold flex justify-between items-center">
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-100 rounded-xl shadow-xl z-50 dropdown-menu" style={{ color: 'var(--color-text)' }}>
+                    <div className="p-4 border-b border-gray-100 font-semibold flex justify-between items-center text-sm uppercase tracking-wider text-gray-500">
                       Notificaciones
-                      <button className="text-gray-400 hover:text-white bg-transparent border-none cursor-pointer" onClick={() => setShowDropdown(false)}>
+                      <button className="text-gray-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-colors" onClick={() => setShowDropdown(false)}>
                         <X size={16} />
                       </button>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto">
                       {alertas.length === 0 ? (
-                        <div className="p-4 text-center text-gray-400 text-sm">
+                        <div className="p-8 text-center text-gray-400 text-sm">
                           No hay alertas nuevas.
                         </div>
                       ) : (
                         alertas.map(alerta => (
-                          <div key={alerta.id} className="p-3 border-b border-gray-700 hover:bg-gray-700 flex flex-col gap-1">
-                            <span className="text-sm">{alerta.mensaje}</span>
-                            <div className="flex justify-between items-center mt-1">
+                          <div key={alerta.id} className="p-4 border-b border-gray-50 hover:bg-slate-50 flex flex-col gap-1 transition-colors">
+                            <span className="text-sm font-medium">{alerta.mensaje}</span>
+                            <div className="flex justify-between items-center mt-2">
                               <span className="text-xs text-gray-400">
                                 {format(new Date(alerta.fecha), 'dd/MM HH:mm')}
                               </span>
                               <button 
                                 onClick={() => marcarComoLeida(alerta.id)}
-                                className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 bg-transparent border-none cursor-pointer p-0"
+                                className="text-blue-500 hover:text-blue-600 text-xs flex items-center gap-1 bg-transparent border-none cursor-pointer p-0 font-medium"
                               >
                                 <CheckCircle size={14} /> Marcar Leída
                               </button>

@@ -134,10 +134,10 @@ const Lotes: React.FC = () => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text)' }}>
                       <Layers size={18} /> {lote.numeroLote}
                     </h3>
-                    <span className="text-sm text-gray-400">{lote.tipoPapel.codigo} - {lote.tipoPapel.descripcion}</span>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>{lote.tipoPapel.codigo} - {lote.tipoPapel.descripcion}</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span className={`text-xs font-bold px-2 py-1 rounded ${status.bg} ${status.color}`}>
@@ -146,42 +146,42 @@ const Lotes: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-sm space-y-2">
-                  <div className="flex items-center gap-2 text-gray-300">
+                <div className="text-sm" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)' }}>
                     <Calendar size={14} /> 
                     <span>Recepción: {format(new Date(lote.fechaRecepcion), 'dd MMM yyyy', { locale: es })}</span>
                   </div>
                   {lote.fechaCaducidad && (
-                    <div className="flex items-center gap-2 text-gray-300">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)' }}>
                       <Calendar size={14} /> 
                       <span>Caducidad: {format(new Date(lote.fechaCaducidad), 'dd MMM yyyy', { locale: es })}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-auto pt-3 border-t border-gray-700">
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="text-sm text-gray-400 m-0 flex items-center gap-2">
+                <div className="mt-auto pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Package size={14} /> Stock Restante
                     </h4>
-                    <span className="text-sm font-bold">{totalStock} / {lote.cantidadInicial || totalStock}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{totalStock} / {lote.cantidadInicial || totalStock}</span>
                   </div>
                   
-                  <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
-                    <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${percentRemaining}%` }}></div>
+                  <div style={{ width: '100%', background: '#f1f5f9', borderRadius: '9999px', height: '8px', marginBottom: '1rem' }}>
+                    <div style={{ width: `${percentRemaining}%`, background: 'var(--color-primary)', height: '8px', borderRadius: '9999px', transition: 'width 0.3s' }}></div>
                   </div>
 
                   {lote.stocks.length > 0 ? (
-                    <div className="space-y-1">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       {lote.stocks.filter(s => s.cantidadActual > 0).map(s => (
-                        <div key={s.id} className="flex justify-between text-xs bg-gray-800 p-1.5 rounded">
-                          <span>{s.almacen.nombre}</span>
-                          <span className="font-bold text-white">{s.cantidadActual}</span>
+                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{s.almacen.nombre}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{s.cantidadActual}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-500 italic m-0">Lote agotado (sin stock).</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>Lote agotado (sin stock).</p>
                   )}
                 </div>
               </div>

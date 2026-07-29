@@ -191,23 +191,33 @@ export const getReporteMovimientosIngeniero = async (req: Request, res: Response
 export const getReporteKioskosAbastecidos = async (req: Request, res: Response) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
-    const where: any = {};
+    const where: any = {
+      accion: { contains: 'Cambio de Papel' }
+    };
+    
     if (fechaInicio || fechaFin) {
-      where.fechaAsignacion = {};
-      if (fechaInicio) where.fechaAsignacion.gte = new Date(fechaInicio as string);
+      where.fecha = {};
+      if (fechaInicio) where.fecha.gte = new Date(fechaInicio as string);
       if (fechaFin) {
         const endDate = new Date(fechaFin as string);
         endDate.setHours(23, 59, 59, 999);
-        where.fechaAsignacion.lte = endDate;
+        where.fecha.lte = endDate;
       }
     }
-    const asignaciones = await prisma.asignacionPeriferico.findMany({
+    
+    const intervenciones = await prisma.intervencionKiosko.findMany({
       where,
-      include: { periferico: true, tipoPapel: true, usuario: true },
-      orderBy: { fechaAsignacion: 'desc' },
+      include: { 
+        periferico: true, 
+        ingeniero: true,
+        almacenOrigen: true
+      },
+      orderBy: { fecha: 'desc' },
     });
-    res.json(asignaciones);
+    
+    res.json(intervenciones);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al generar reporte de kioskos' });
   }
 };

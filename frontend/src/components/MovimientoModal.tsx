@@ -154,7 +154,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
                 <label className="form-label">Almacén Origen</label>
                 <select className="form-input" value={almacenOrigenId} onChange={e => setAlmacenOrigenId(e.target.value)}>
                   <option value="">Selecciona origen...</option>
-                  {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre} {a.ubicacion ? `- ${a.ubicacion}` : ''}</option>)}
                 </select>
               </div>
             )}
@@ -164,7 +164,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
                 <label className="form-label">Almacén Destino</label>
                 <select className="form-input" value={almacenDestinoId} onChange={e => setAlmacenDestinoId(e.target.value)}>
                   <option value="">Selecciona destino...</option>
-                  {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre} {a.ubicacion ? `- ${a.ubicacion}` : ''}</option>)}
                 </select>
               </div>
             )}
