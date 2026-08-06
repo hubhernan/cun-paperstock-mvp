@@ -1,20 +1,28 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { getIO } from '../socket';
+
 import { enviarAlertaStock } from '../services/emailService';
 
 const prisma = new PrismaClient();
 
 export const getAlertas = async (req: Request, res: Response) => {
+  const mostrarLeidas = req.query.mostrarLeidas === 'true';
   try {
-    const alertas = await prisma.alertaStock.findMany({
-      where: { leida: false },
+    const queryOptions: any = {
       include: {
         tipoPapel: true,
       },
-      orderBy: { fecha: 'desc' },
-      take: 20
-    });
+      orderBy: { fecha: 'desc' }
+    };
+
+    if (!mostrarLeidas) {
+      queryOptions.where = { leida: false };
+      queryOptions.take = 50;
+    } else {
+      queryOptions.take = 100;
+    }
+
+    const alertas = await prisma.alertaStock.findMany(queryOptions);
     res.json({ success: true, data: alertas });
   } catch (error) {
     console.error('Error al obtener alertas:', error);
@@ -81,13 +89,7 @@ export const verificarAlertaStock = async (tx: any, tipoPapelId: string) => {
         include: { tipoPapel: true }
       });
 
-      // Emitir evento en tiempo real
-      try {
-        const io = getIO();
-        io.emit('nuevaAlerta', nuevaAlerta);
-      } catch (e) {
-        console.error('Socket.io no disponible para emitir alerta');
-      }
+
       // Enviar correo a los administradores y supervisores
       try {
         // Obtener correos de admin/supervisor

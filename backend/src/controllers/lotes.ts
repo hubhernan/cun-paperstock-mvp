@@ -84,13 +84,13 @@ export const getHistorialLote = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const movimientos = await prisma.movimientoInventario.findMany({
-      where: { loteId: id },
+      where: { loteId: id as string },
       include: { almacenOrigen: true, almacenDestino: true, usuario: true },
       orderBy: { fechaMovimiento: 'desc' }
     });
     
     const asignaciones = await prisma.asignacionPeriferico.findMany({
-      where: { loteId: id },
+      where: { loteId: id as string },
       include: { periferico: { include: { area: true } }, usuario: true },
       orderBy: { fechaAsignacion: 'desc' }
     });

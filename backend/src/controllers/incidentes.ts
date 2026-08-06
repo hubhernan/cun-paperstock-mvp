@@ -75,7 +75,7 @@ export const updateIncidenteStatus = async (req: Request, res: Response) => {
     const usuarioId = (req as any).user.id;
 
     const incidenteActualizado = await prisma.incidenteDiscrepancia.update({
-      where: { id },
+      where: { id: id as string },
       data: { estado }
     });
 

@@ -176,15 +176,38 @@ async function main() {
   console.log('Almacenes listos.');
 
   // 5. Crear Áreas y Periféricos
-  const areaCheckIn = await prisma.areaAeropuerto.upsert({
+  const areaT2 = await prisma.areaAeropuerto.upsert({
     where: { id: '00000000-0000-0000-0000-000000000003' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000003',
-      nombre: 'Mostradores Check-in',
-      terminal: 'Varias',
+    update: {
+      nombre: 'Kioskos Terminal 2',
+      terminal: 'Terminal 2',
       zona: 'Público',
     },
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      nombre: 'Kioskos Terminal 2',
+      terminal: 'Terminal 2',
+      zona: 'Público',
+    },
+  });
+
+  // Generar 48 kioskos para Terminal 2 (CUN2AKA001 a CUN2AKA048)
+  const perifsT2 = [];
+  for (let i = 1; i <= 48; i++) {
+    const num = i.toString().padStart(3, '0');
+    perifsT2.push({
+      identificadorUnico: `CUN2AKA${num}`,
+      marca: 'SITA',
+      modelo: 'Kiosk V2',
+      areaId: areaT2.id,
+      estadoOperativo: 'ACTIVO',
+      nivelAtb: 100,
+      nivelBtp: 100,
+    });
+  }
+  await prisma.periferico.createMany({
+    data: perifsT2,
+    skipDuplicates: true,
   });
 
   const areaT3 = await prisma.areaAeropuerto.upsert({
@@ -336,7 +359,7 @@ async function main() {
           loteId: lote1.id,
           almacenOrigenId: origenId,
           almacenDestinoId: destinoId,
-          tipoMovimiento: tipoAleatorio,
+          tipoMovimiento: tipoAleatorio as string,
           cantidad: cantidad,
           usuarioId: adminUser.id,
           fechaMovimiento: fechaAleatoria,

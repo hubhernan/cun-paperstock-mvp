@@ -3,7 +3,6 @@ import cors from 'cors';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { createServer } from 'http';
-import { initSocket } from './socket';
 import authRoutes from './routes/auth';
 import tiposPapelRoutes from './routes/tipos-papel';
 import almacenesRoutes from './routes/almacenes';
@@ -19,7 +18,6 @@ import incidentesRoutes from './routes/incidentes';
 import alertasRoutes from './routes/alertas';
 import usuariosRoutes from './routes/usuarios';
 import intervencionesRoutes from './routes/intervenciones';
-import { startKioskSimulator } from './services/KioskSimulator';
 import { startAlertService } from './services/AlertService';
 
 const app = express();
@@ -56,10 +54,6 @@ app.use((req, res, next) => {
 });
 
 const server = createServer(app);
-initSocket(server);
-
-// Iniciar simulador de telemetría de Kioskos (Fase 3)
-startKioskSimulator();
 // Iniciar servicio automático de alertas (Fase 4)
 startAlertService();
 

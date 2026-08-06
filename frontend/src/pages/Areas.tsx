@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X } from 'lucide-react';
 import api from '../services/api';
 
@@ -50,42 +49,40 @@ const Areas: React.FC = () => {
   const [comentarios, setComentarios] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Manual levels inputs
+  const [nivelAtbInput, setNivelAtbInput] = useState(100);
+  const [nivelBtpInput, setNivelBtpInput] = useState(100);
+  const [estadoConexionInput, setEstadoConexionInput] = useState('ONLINE');
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [resAreas, resAlmacenes] = await Promise.all([
-          api.get('/areas'),
-          api.get('/almacenes')
-        ]);
-        if (resAreas.data.success) {
-          setAreas(resAreas.data.data);
-        }
-        if (resAlmacenes.data.success) {
-          setAlmacenes(resAlmacenes.data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching data', error);
-      } finally {
-        setLoading(false);
+    if (selectedKiosko) {
+      setNivelAtbInput(selectedKiosko.nivelAtb ?? 100);
+      setNivelBtpInput(selectedKiosko.nivelBtp ?? 100);
+      setEstadoConexionInput(selectedKiosko.estadoConexion ?? 'ONLINE');
+    }
+  }, [selectedKiosko]);
+
+  const fetchData = async () => {
+    try {
+      const [resAreas, resAlmacenes] = await Promise.all([
+        api.get('/areas'),
+        api.get('/almacenes')
+      ]);
+      if (resAreas.data.success) {
+        setAreas(resAreas.data.data);
       }
-    };
+      if (resAlmacenes.data.success) {
+        setAlmacenes(resAlmacenes.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching data', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
-
-    const socket: Socket = io((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')));
-    socket.on('kiosk_telemetry_update', (data) => {
-      setLiveData(prev => ({
-        ...prev,
-        [data.perifericoId || data.kioskoId]: { // Soporte para ambos nombres de campo temporalmente
-          nivelAtb: data.nivelAtb,
-          nivelBtp: data.nivelBtp,
-          estadoConexion: data.estadoConexion
-        }
-      }));
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, []);
 
   const handleRegisterAction = async (e: React.FormEvent) => {
@@ -99,15 +96,28 @@ const Areas: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      const res = await api.post('/intervenciones', {
+      
+      const payload: any = {
         perifericoId: selectedKiosko.id,
         accion: actionType,
-        almacenOrigenId: actionType.includes('Cambio de Papel') ? selectedAlmacen : undefined,
         comentarios
-      });
+      };
+
+      if (actionType.includes('Cambio de Papel')) {
+        payload.almacenOrigenId = selectedAlmacen;
+      }
+
+      if (actionType === 'Inspección de Rutina (Lectura de Niveles)') {
+        payload.nivelAtb = nivelAtbInput;
+        payload.nivelBtp = nivelBtpInput;
+        payload.estadoConexion = estadoConexionInput;
+      }
+
+      const res = await api.post('/intervenciones', payload);
 
       if (res.data.success) {
         alert('Acción registrada con éxito.');
+        await fetchData();
         closeModal();
       }
     } catch (error) {
@@ -292,6 +302,7 @@ const Areas: React.FC = () => {
                 >
                   <option value="Cambio de Papel ATB">Cambio de Papel ATB</option>
                   <option value="Cambio de Papel BTP">Cambio de Papel BTP</option>
+                  <option value="Inspección de Rutina (Lectura de Niveles)">Inspección de Rutina (Lectura de Niveles)</option>
                   <option value="Reset Físico (Reinicio)">Reset Físico (Reinicio)</option>
                   <option value="Limpieza de Rodillos / Sensores">Limpieza de Rodillos / Sensores</option>
                   <option value="Calibración">Calibración</option>
@@ -316,6 +327,49 @@ const Areas: React.FC = () => {
                     ))}
                   </select>
                   <span style={{ fontSize: '0.75rem', color: 'gray' }}>Indica de qué bodega tomaste el nuevo rollo.</span>
+                </div>
+              )}
+
+              {actionType === 'Inspección de Rutina (Lectura de Niveles)' && (
+                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-primary-dark)' }}>Valores Físicos Observados</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Nivel ATB %</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        className="input-field" 
+                        value={nivelAtbInput} 
+                        onChange={e => setNivelAtbInput(Number(e.target.value))} 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Nivel BTP %</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        className="input-field" 
+                        value={nivelBtpInput} 
+                        onChange={e => setNivelBtpInput(Number(e.target.value))} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Estado de Conexión</label>
+                    <select 
+                      className="input-field" 
+                      value={estadoConexionInput} 
+                      onChange={e => setEstadoConexionInput(e.target.value)}
+                    >
+                      <option value="ONLINE">ONLINE</option>
+                      <option value="OFFLINE">OFFLINE</option>
+                    </select>
+                  </div>
                 </div>
               )}
 

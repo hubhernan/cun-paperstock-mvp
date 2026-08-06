@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getIO } from '../socket';
+
 
 const prisma = new PrismaClient();
 let alertIntervalId: NodeJS.Timeout | null = null;
@@ -15,12 +15,7 @@ export const startAlertService = () => {
   // Ejecutar cada 15 segundos
   alertIntervalId = setInterval(async () => {
     try {
-      let io;
-      try {
-        io = getIO();
-      } catch (err) {
-        return;
-      }
+
 
       // 1. MONITORIZACIÓN DE STOCK GLOBAL (Almacenes)
       const tiposPapel = await prisma.tipoPapel.findMany();
@@ -46,13 +41,7 @@ export const startAlertService = () => {
             }
           });
 
-          io.emit('nueva_alerta', {
-            id: nuevaAlerta.id,
-            kioskoId: 'GLOBAL', // Indicador de que es de almacén
-            mensaje: mensaje,
-            severity: 'CRITICA',
-            fecha: nuevaAlerta.fecha
-          });
+
         } else if (stockActual > tp.stockMinimo) {
           if (lastAlertState[`global-${tp.id}`]) {
             delete lastAlertState[`global-${tp.id}`];
@@ -117,14 +106,7 @@ export const startAlertService = () => {
               }
             });
 
-            // Emitir por socket
-            io.emit('nueva_alerta', {
-              id: nuevaAlerta.id,
-              kioskoId: kiosko.id,
-              mensaje: mensaje,
-              severity: severity,
-              fecha: nuevaAlerta.fecha
-            });
+
           }
         } else if (severity === 'OK') {
           // Resetear si volvió a la normalidad

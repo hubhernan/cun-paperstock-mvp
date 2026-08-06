@@ -50,3 +50,14 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Error en el servidor' });
   }
 };
+
+export const logout = async (req: Request, res: Response) => {
+  try {
+    const usuarioId = (req as any).user.id;
+    await registrarAuditoria(usuarioId, 'LOGOUT', 'Usuario', usuarioId, 'Cierre de sesión exitoso', req.ip);
+    res.json({ success: true, message: 'Sesión cerrada exitosamente' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error al registrar salida' });
+  }
+};

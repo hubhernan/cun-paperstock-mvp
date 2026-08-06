@@ -6,7 +6,7 @@ import { getLotes, createLote } from '../services/lotesService';
 interface MovimientoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  tipoMovimiento: 'ENTRADA' | 'SALIDA' | 'TRANSFERENCIA';
+  tipoMovimiento: 'ENTRADA' | 'SALIDA' | 'TRANSFERENCIA' | 'MERMA';
   onSuccess: () => void;
 }
 
@@ -21,6 +21,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
   const [tipoPapelId, setTipoPapelId] = useState('');
   const [loteId, setLoteId] = useState('');
   const [cantidad, setCantidad] = useState(1);
+  const [comentarios, setComentarios] = useState('');
   
   // Nuevo Lote state
   const [creandoLote, setCreandoLote] = useState(false);
@@ -49,8 +50,11 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
       };
       fetchData();
       // Reset form
+      setAlmacenOrigenId('');
+      setAlmacenDestinoId('');
       setCantidad(1);
       setLoteId('');
+      setComentarios('');
       setCreandoLote(false);
       setError('');
       setSuccessMsg('');
@@ -87,17 +91,17 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
     try {
       if (tipoMovimiento === 'ENTRADA' && !almacenDestinoId) throw new Error('Selecciona el almacén destino.');
       if (tipoMovimiento === 'ENTRADA' && !loteId) throw new Error('Debes seleccionar o crear un lote para la Entrada.');
-      if ((tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA') && !almacenOrigenId) throw new Error('Selecciona el almacén origen.');
+      if ((tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA' || tipoMovimiento === 'MERMA') && !almacenOrigenId) throw new Error('Selecciona el almacén origen.');
       if (tipoMovimiento === 'TRANSFERENCIA' && !almacenDestinoId) throw new Error('Selecciona el almacén destino.');
 
       await api.post('/movimientos', {
         tipoMovimiento,
         tipoPapelId: papelId,
         loteId: tipoMovimiento === 'ENTRADA' ? loteId : null,
-        almacenOrigenId: (tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA') ? almacenOrigenId : null,
+        almacenOrigenId: (tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA' || tipoMovimiento === 'MERMA') ? almacenOrigenId : null,
         almacenDestinoId: (tipoMovimiento === 'ENTRADA' || tipoMovimiento === 'TRANSFERENCIA') ? almacenDestinoId : null,
         cantidad: cant,
-        comentarios: 'Registro manual'
+        comentarios: comentarios || 'Registro manual'
       });
 
       const papel = tiposPapel.find(p => p.id === papelId);
@@ -128,6 +132,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
             {tipoMovimiento === 'ENTRADA' && <span style={{ color: 'var(--color-success)' }}>▼ Nueva Entrada</span>}
             {tipoMovimiento === 'SALIDA' && <span style={{ color: 'var(--color-warning)' }}>▲ Nueva Salida</span>}
             {tipoMovimiento === 'TRANSFERENCIA' && <span style={{ color: 'var(--color-primary-light)' }}>⇄ Transferencia</span>}
+            {tipoMovimiento === 'MERMA' && <span style={{ color: 'var(--color-danger)' }}>⚠ Nueva Merma</span>}
           </h3>
           <button onClick={onClose} className="btn-icon">
             <X size={20} />
@@ -149,7 +154,7 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
           )}
 
           <div>
-            {(tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA') && (
+            {(tipoMovimiento === 'SALIDA' || tipoMovimiento === 'TRANSFERENCIA' || tipoMovimiento === 'MERMA') && (
               <div className="form-group">
                 <label className="form-label">Almacén Origen</label>
                 <select className="form-input" value={almacenOrigenId} onChange={e => setAlmacenOrigenId(e.target.value)}>
@@ -217,6 +222,18 @@ const MovimientoModal: React.FC<MovimientoModalProps> = ({ isOpen, onClose, tipo
             <div className="form-group">
               <label className="form-label">Cantidad</label>
               <input type="number" min="1" className="form-input" value={cantidad} onChange={e => setCantidad(Number(e.target.value))} />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Razón del Movimiento / Comentarios</label>
+              <textarea 
+                className="form-input" 
+                rows={3} 
+                placeholder={tipoMovimiento === 'MERMA' ? 'Ej. Rollos mojados por gotera, dañados en transporte, etc.' : 'Indica comentarios adicionales...'} 
+                value={comentarios} 
+                onChange={e => setComentarios(e.target.value)}
+                style={{ resize: 'vertical' }}
+              />
             </div>
             
             <button 

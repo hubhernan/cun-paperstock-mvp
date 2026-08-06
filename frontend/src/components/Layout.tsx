@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 const Layout: React.FC = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
-  const { alertas, marcarComoLeida, notificacionActiva, cerrarNotificacion } = useAlerts();
+  const { alertas, marcarComoLeida, notificacionActiva, cerrarNotificacion, refrescarAlertas } = useAlerts();
   const [showDropdown, setShowDropdown] = React.useState(false);
 
   const isActive = (path: string) => location.pathname === path;
@@ -49,6 +49,15 @@ const Layout: React.FC = () => {
           )}
           {(user?.rol === 'Admin' || user?.rol === 'Supervisor') && (
             <>
+              <Link to="/alertas" className={`nav-link ${isActive('/alertas') ? 'active' : ''}`}>
+                <Bell size={20} />
+                Alertas
+                {alertas.length > 0 && (
+                  <span style={{ marginLeft: 'auto', background: 'var(--color-danger)', color: 'white', padding: '0.15rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                    {alertas.length}
+                  </span>
+                )}
+              </Link>
               <Link to="/reportes" className={`nav-link ${isActive('/reportes') ? 'active' : ''}`}>
                 <FileText size={20} />
                 Reportes
@@ -60,6 +69,10 @@ const Layout: React.FC = () => {
               <Link to="/incidentes" className={`nav-link ${isActive('/incidentes') ? 'active' : ''}`}>
                 <AlertTriangle size={20} />
                 Incidentes
+              </Link>
+              <Link to="/auditoria" className={`nav-link ${isActive('/auditoria') ? 'active' : ''}`}>
+                <Users size={20} />
+                Auditoría
               </Link>
             </>
           )}
@@ -84,7 +97,10 @@ const Layout: React.FC = () => {
               <div className="relative">
                 <button 
                   className="btn btn-icon p-2 text-gray-300 hover:text-white relative bg-transparent border-none cursor-pointer"
-                  onClick={() => setShowDropdown(!showDropdown)}
+                  onClick={() => {
+                    refrescarAlertas();
+                    setShowDropdown(!showDropdown);
+                  }}
                 >
                   <Bell size={24} />
                   {alertas.length > 0 && (

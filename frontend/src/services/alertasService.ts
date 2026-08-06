@@ -1,8 +1,14 @@
 import api from './api';
 
-export const getAlertasNoLeidas = async () => {
-  const { data } = await api.get('/alertas');
+export const getAlertas = async (mostrarLeidas?: boolean) => {
+  const { data } = await api.get('/alertas', {
+    params: { mostrarLeidas: mostrarLeidas ? 'true' : 'false' }
+  });
   return data;
+};
+
+export const getAlertasNoLeidas = async () => {
+  return getAlertas(false);
 };
 
 export const marcarAlertaComoLeida = async (id: string) => {

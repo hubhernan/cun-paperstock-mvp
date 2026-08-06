@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { getAlertasNoLeidas, marcarAlertaComoLeida } from '../services/alertasService';
 import { useAuth } from './AuthContext';
 
@@ -15,6 +14,7 @@ interface AlertContextType {
   marcarComoLeida: (id: string) => Promise<void>;
   notificacionActiva: Alerta | null;
   cerrarNotificacion: () => void;
+  refrescarAlertas: () => Promise<void>;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
@@ -24,39 +24,29 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notificacionActiva, setNotificacionActiva] = useState<Alerta | null>(null);
   const { user } = useAuth();
 
-  useEffect(() => {
-    let socket: Socket;
-
-    const inicializar = async () => {
-      if (user?.rol === 'Admin' || user?.rol === 'Supervisor') {
-        try {
-          const res = await getAlertasNoLeidas();
-          if (res.success) {
-            setAlertas(res.data);
-          }
-
-          socket = io((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')));
-          socket.on('nueva_alerta', (alerta: Alerta) => {
-            setAlertas(prev => [alerta, ...prev]);
-            setNotificacionActiva(alerta);
-            
-            // Ocultar notificación visual después de 5 segundos
-            setTimeout(() => {
-              setNotificacionActiva(null);
-            }, 5000);
-          });
-        } catch (error) {
-          console.error('Error cargando alertas', error);
+  const refrescarAlertas = async () => {
+    if (user?.rol === 'Admin' || user?.rol === 'Supervisor') {
+      try {
+        const res = await getAlertasNoLeidas();
+        if (res.success) {
+          setAlertas(res.data);
         }
+      } catch (error) {
+        console.error('Error cargando alertas', error);
       }
-    };
+    }
+  };
 
-    inicializar();
+  useEffect(() => {
+    refrescarAlertas();
+
+    // Polling suave de 30 segundos en lugar de WebSockets
+    const interval = setInterval(() => {
+      refrescarAlertas();
+    }, 30000);
 
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      clearInterval(interval);
     };
   }, [user]);
 
@@ -72,7 +62,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const cerrarNotificacion = () => setNotificacionActiva(null);
 
   return (
-    <AlertContext.Provider value={{ alertas, marcarComoLeida, notificacionActiva, cerrarNotificacion }}>
+    <AlertContext.Provider value={{ alertas, marcarComoLeida, notificacionActiva, cerrarNotificacion, refrescarAlertas }}>
       {children}
     </AlertContext.Provider>
   );

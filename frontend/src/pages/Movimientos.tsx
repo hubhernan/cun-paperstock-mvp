@@ -21,7 +21,7 @@ const Movimientos: React.FC = () => {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalTipo, setModalTipo] = useState<'ENTRADA' | 'SALIDA' | 'TRANSFERENCIA'>('ENTRADA');
+  const [modalTipo, setModalTipo] = useState<'ENTRADA' | 'SALIDA' | 'TRANSFERENCIA' | 'MERMA'>('ENTRADA');
   const [filtroProveedor, setFiltroProveedor] = useState<string>('ALL');
 
   const fetchMovimientos = async () => {
@@ -49,31 +49,6 @@ const Movimientos: React.FC = () => {
       case 'TRANSFERENCIA': return <ArrowRightLeft size={18} color="var(--color-primary-light)" />;
       default: return null;
     }
-  };
-
-  const exportToCSV = () => {
-    const headers = ['Tipo', 'Papel', 'Origen', 'Destino', 'Cantidad', 'Fecha', 'Usuario'];
-    const rows = movimientos.map(mov => [
-      mov.tipoMovimiento,
-      mov.tipoPapel.codigo,
-      mov.almacenOrigen?.nombre || '',
-      mov.almacenDestino?.nombre || '',
-      mov.cantidad,
-      format(new Date(mov.fechaMovimiento), 'dd/MM/yyyy HH:mm'),
-      mov.usuario.nombre
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "movimientos_cun.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const exportToExcelHandler = () => {
@@ -117,9 +92,6 @@ const Movimientos: React.FC = () => {
           </select>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn btn-primary" onClick={exportToCSV} style={{ background: 'var(--color-primary-dark)' }}>
-            Exportar CSV
-          </button>
           <button className="btn btn-primary" onClick={exportToExcelHandler} style={{ background: '#107c41' }}>
             <Download size={18} />
             Exportar a Excel
@@ -147,6 +119,14 @@ const Movimientos: React.FC = () => {
           >
             <ArrowRightLeft size={18} />
             Transferencia
+          </button>
+          <button 
+            className="btn btn-primary" 
+            style={{ background: 'var(--color-danger)' }}
+            onClick={() => { setModalTipo('MERMA'); setModalOpen(true); }}
+          >
+            <AlertTriangle size={18} />
+            Merma
           </button>
         </div>
       </div>
