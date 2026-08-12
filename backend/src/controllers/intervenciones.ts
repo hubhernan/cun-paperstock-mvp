@@ -77,26 +77,18 @@ export const createIntervencion = async (req: Request, res: Response) => {
           throw new Error(`Tipo de papel ${tipoPapelCodigo} no configurado en el catálogo.`);
         }
 
-        // Buscar stock disponible en el almacén de origen (FIFO por fecha de recepción del lote)
+        // Buscar stock disponible en el almacén de origen
         const stocksValidos = await tx.stockAlmacen.findMany({
           where: {
             almacenId: almacenOrigenId,
             tipoPapelId: tipoPapelObj.id,
             cantidadActual: { gt: 0 }
-          },
-          include: {
-            lote: true
-          },
-          orderBy: {
-            lote: {
-              fechaRecepcion: 'asc'
-            }
           }
         });
 
         // Si no hay stock disponible, arrojamos un error semántico.
         if (stocksValidos.length === 0 || !stocksValidos[0]) {
-          throw new Error(`No hay stock disponible del insumo ${tipoPapelObj.codigo} en el almacén seleccionado para descontar.`);
+          throw new Error(`No hay stock disponible del insumo ${tipoPapelObj.codigo} en el almacén seleccionado.`);
         }
 
         const stockElegido = stocksValidos[0];
@@ -130,15 +122,23 @@ export const createIntervencion = async (req: Request, res: Response) => {
           data: {
             perifericoId: perifericoId,
             tipoPapelId: tipoPapelObj.id,
-            loteId: stockElegido.loteId,
+            loteId: stockElegido.loteId || null,
             cantidadAsignada: 1,
-            usuarioId: ingenieroId,
-            comentarios: `Refill manual en Kiosko ${intervencion.periferico.identificadorUnico}`
+            usuarioId: ingenieroId
           }
         });
       }
 
-      // 4. Registrar auditoría de seguridad y acciones
+      // 4. Marcar automáticamente alertas pendientes de este kiosko como leídas / resueltas
+      await tx.alertaStock.updateMany({
+        where: {
+          leida: false,
+          mensaje: { contains: intervencion.periferico.identificadorUnico }
+        },
+        data: { leida: true }
+      });
+
+      // 5. Registrar auditoría de seguridad y acciones
       await tx.auditoriaAcciones.create({
         data: {
           usuarioId: ingenieroId,

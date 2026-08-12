@@ -25,7 +25,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { user } = useAuth();
 
   const refrescarAlertas = async () => {
-    if (user?.rol === 'Admin' || user?.rol === 'Supervisor') {
+    if (user) {
       try {
         const res = await getAlertasNoLeidas();
         if (res.success) {

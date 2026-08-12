@@ -19,6 +19,7 @@ const Alertas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [mostrarLeidas, setMostrarLeidas] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [filtroUbicacion, setFiltroUbicacion] = useState<string>('ALL');
   const [error, setError] = useState('');
 
   const fetchAlertas = async () => {
@@ -47,9 +48,7 @@ const Alertas: React.FC = () => {
     try {
       const res = await marcarAlertaComoLeida(id);
       if (res.success) {
-        // Actualizar estado local
         setAlertas(prev => prev.map(al => al.id === id ? { ...al, leida: true } : al));
-        // Actualizar contexto global (header/sidebar count)
         await refrescarAlertas();
       }
     } catch (err) {
@@ -89,7 +88,7 @@ const Alertas: React.FC = () => {
     const msg = alerta.mensaje.toUpperCase();
     
     // Alerta Global de Almacén (Azul)
-    if (msg.includes('GLOBAL')) {
+    if (msg.includes('GLOBAL') || msg.includes('ALMACÉN') || msg.includes('ALMACEN')) {
       return {
         border: '1px solid var(--color-primary)',
         backgroundColor: 'var(--color-primary-glow)',
@@ -126,10 +125,19 @@ const Alertas: React.FC = () => {
     };
   };
 
-  const filteredAlertas = alertas.filter(al => 
-    al.mensaje.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (al.tipoPapel?.codigo || '').toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const filteredAlertas = alertas.filter(al => {
+    const matchesBusqueda = al.mensaje.toLowerCase().includes(busqueda.toLowerCase()) ||
+      (al.tipoPapel?.codigo || '').toLowerCase().includes(busqueda.toLowerCase());
+    
+    if (!matchesBusqueda) return false;
+
+    if (filtroUbicacion === 'ALL') return true;
+    if (filtroUbicacion === 'ALMACEN') {
+      const msg = al.mensaje.toUpperCase();
+      return msg.includes('GLOBAL') || msg.includes('ALMACÉN') || msg.includes('ALMACEN');
+    }
+    return al.mensaje.includes(filtroUbicacion);
+  });
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -165,15 +173,30 @@ const Alertas: React.FC = () => {
 
       {/* Barra de Filtros */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', padding: '1rem 1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 'var(--border-radius)', padding: '0.5rem 1rem', width: '320px', gap: '0.5rem' }}>
-          <Search size={18} className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar alertas..." 
-            style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', fontSize: '0.9rem', color: 'var(--color-text)' }}
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 'var(--border-radius)', padding: '0.5rem 1rem', width: '280px', gap: '0.5rem' }}>
+            <Search size={18} className="text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar alertas..." 
+              style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', fontSize: '0.9rem', color: 'var(--color-text)' }}
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="input-field"
+            style={{ padding: '0.45rem 2rem 0.45rem 0.75rem', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 'var(--border-radius)', fontSize: '0.875rem' }}
+            value={filtroUbicacion}
+            onChange={e => setFiltroUbicacion(e.target.value)}
+          >
+            <option value="ALL">Todas las Ubicaciones / Terminales</option>
+            <option value="ALMACEN">Solo Almacenes</option>
+            <option value="Terminal 2">Terminal 2</option>
+            <option value="Terminal 3">Terminal 3</option>
+            <option value="Terminal 4">Terminal 4</option>
+          </select>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

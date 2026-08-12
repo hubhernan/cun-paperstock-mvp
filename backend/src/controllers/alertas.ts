@@ -17,9 +17,6 @@ export const getAlertas = async (req: Request, res: Response) => {
 
     if (!mostrarLeidas) {
       queryOptions.where = { leida: false };
-      queryOptions.take = 50;
-    } else {
-      queryOptions.take = 100;
     }
 
     const alertas = await prisma.alertaStock.findMany(queryOptions);

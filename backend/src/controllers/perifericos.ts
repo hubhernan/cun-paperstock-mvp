@@ -50,3 +50,84 @@ export const createPeriferico = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Error al crear periférico' });
   }
 };
+
+export const updateNivelPeriferico = async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { nivelAtb, nivelBtp } = req.body;
+  const usuarioId = (req as any).user.id;
+
+  try {
+    const dataToUpdate: any = {};
+    if (nivelAtb !== undefined) dataToUpdate.nivelAtb = Number(nivelAtb);
+    if (nivelBtp !== undefined) dataToUpdate.nivelBtp = Number(nivelBtp);
+
+    const perifericoActualizado = await prisma.periferico.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    const worstNivel = Math.min(perifericoActualizado.nivelAtb, perifericoActualizado.nivelBtp);
+    const lowType = perifericoActualizado.nivelAtb <= perifericoActualizado.nivelBtp ? 'ATB' : 'BTP';
+
+    if (worstNivel > 20) {
+      await prisma.alertaStock.updateMany({
+        where: {
+          leida: false,
+          mensaje: { contains: perifericoActualizado.identificadorUnico }
+        },
+        data: { leida: true }
+      });
+    } else {
+      const alertaExistente = await prisma.alertaStock.findFirst({
+        where: {
+          leida: false,
+          mensaje: { contains: perifericoActualizado.identificadorUnico }
+        }
+      });
+
+      const area = await prisma.areaAeropuerto.findUnique({ where: { id: perifericoActualizado.areaId } });
+      const firstPapel = await prisma.tipoPapel.findFirst({
+        where: { codigo: { contains: lowType, mode: 'insensitive' } }
+      }) || await prisma.tipoPapel.findFirst();
+
+      if (firstPapel) {
+        const areaNombre = area?.nombre || 'Kioskos en Sitio';
+        const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
+        const nuevoMensaje = `Kiosko ${perifericoActualizado.identificadorUnico} en ${areaNombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
+
+        if (alertaExistente) {
+          await prisma.alertaStock.update({
+            where: { id: alertaExistente.id },
+            data: {
+              mensaje: nuevoMensaje,
+              fecha: new Date(),
+              tipoPapelId: firstPapel.id
+            }
+          });
+        } else {
+          await prisma.alertaStock.create({
+            data: {
+              tipoPapelId: firstPapel.id,
+              mensaje: nuevoMensaje
+            }
+          });
+        }
+      }
+    }
+
+    await prisma.auditoriaAcciones.create({
+      data: {
+        usuarioId,
+        accion: 'ACTUALIZACION_SEMAFORO',
+        entidad: 'Periferico',
+        entidadId: id,
+        detalles: `Semáforo actualizado en ${perifericoActualizado.identificadorUnico}: ATB ${perifericoActualizado.nivelAtb}%, BTP ${perifericoActualizado.nivelBtp}%`
+      }
+    });
+
+    res.json({ success: true, data: perifericoActualizado, message: 'Semáforo actualizado.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error al actualizar semáforo de periférico' });
+  }
+};

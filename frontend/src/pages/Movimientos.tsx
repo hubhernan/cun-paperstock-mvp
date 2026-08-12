@@ -22,7 +22,7 @@ const Movimientos: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState<'ENTRADA' | 'SALIDA' | 'TRANSFERENCIA' | 'MERMA'>('ENTRADA');
-  const [filtroProveedor, setFiltroProveedor] = useState<string>('ALL');
+  const [filtroTipoMovimiento, setFiltroTipoMovimiento] = useState<string>('ALL');
 
   const fetchMovimientos = async () => {
       try {
@@ -51,27 +51,47 @@ const Movimientos: React.FC = () => {
     }
   };
 
+  const formatOrigen = (mov: Movimiento) => {
+    if (mov.tipoMovimiento === 'ENTRADA') return '-';
+    if (!mov.almacenOrigen) return '-';
+    const nombre = mov.almacenOrigen.nombre;
+    return nombre;
+  };
+
+  const formatDestino = (mov: Movimiento) => {
+    if (mov.tipoMovimiento === 'MERMA') return '-';
+    if (mov.tipoMovimiento === 'SALIDA') {
+      if (mov.almacenDestino?.nombre) return mov.almacenDestino.nombre;
+      if (mov.comentarios) {
+        const match = mov.comentarios.match(/CUN\d[A-Z0-9]{5,}/i) || mov.comentarios.match(/Kiosko\s+([A-Z0-9_-]+)/i);
+        if (match) {
+          return match[0].startsWith('Kiosko') ? match[0] : `Kiosko ${match[0]}`;
+        }
+        if (mov.comentarios !== 'Registro manual') return mov.comentarios;
+      }
+      return 'Kiosko en Sitio';
+    }
+    return mov.almacenDestino?.nombre || '-';
+  };
+
   const exportToExcelHandler = () => {
     const dataToExport = filteredMovimientos.map(mov => ({
       'Tipo': mov.tipoMovimiento,
       'Papel': mov.tipoPapel.codigo,
       'Proveedor': (mov.tipoMovimiento === 'ENTRADA' ? mov.almacenDestino?.proveedor : mov.almacenOrigen?.proveedor) || '',
-      'Origen': mov.almacenOrigen?.nombre || '',
-      'Destino': mov.almacenDestino?.nombre || '',
+      'Origen': formatOrigen(mov),
+      'Destino': formatDestino(mov),
       'Cantidad': mov.cantidad,
       'Fecha': format(new Date(mov.fechaMovimiento), 'dd/MM/yyyy HH:mm'),
-      'Usuario': mov.usuario.nombre
+      'Usuario': mov.usuario.nombre,
+      'Comentarios': mov.comentarios || ''
     }));
     exportToExcel(dataToExport, 'Movimientos', 'movimientos_cun');
   };
 
   const filteredMovimientos = movimientos.filter(mov => {
-    if (filtroProveedor === 'ALL') return true;
-    const provOrigen = mov.almacenOrigen?.proveedor;
-    const provDestino = mov.almacenDestino?.proveedor;
-    // Si es entrada, nos importa el destino. Si es salida/transferencia, el origen.
-    const provRelevante = mov.tipoMovimiento === 'ENTRADA' ? provDestino : provOrigen;
-    return provRelevante === filtroProveedor;
+    if (filtroTipoMovimiento === 'ALL') return true;
+    return mov.tipoMovimiento === filtroTipoMovimiento;
   });
 
   return (
@@ -82,13 +102,14 @@ const Movimientos: React.FC = () => {
           <select 
             className="input-field" 
             style={{ padding: '0.4rem 2rem 0.4rem 0.5rem' }} 
-            value={filtroProveedor} 
-            onChange={(e) => setFiltroProveedor(e.target.value)}
+            value={filtroTipoMovimiento} 
+            onChange={(e) => setFiltroTipoMovimiento(e.target.value)}
           >
-            <option value="ALL">Todos los Proveedores</option>
-            <option value="ASUR">Solo ASUR</option>
-            <option value="SITA">Solo SITA</option>
-            <option value="OTRO">Solo OTRO</option>
+            <option value="ALL">Todos los Movimientos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SALIDA">Salida</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="MERMA">Merma</option>
           </select>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -103,14 +124,6 @@ const Movimientos: React.FC = () => {
           >
             <ArrowDownToLine size={18} />
             Entrada
-          </button>
-          <button 
-            className="btn btn-primary" 
-            style={{ background: 'var(--color-secondary)' }}
-            onClick={() => { setModalTipo('SALIDA'); setModalOpen(true); }}
-          >
-            <ArrowUpFromLine size={18} />
-            Salida
           </button>
           <button 
             className="btn btn-primary" 
@@ -169,8 +182,8 @@ const Movimientos: React.FC = () => {
                       </span>
                     ) : '-'}
                   </td>
-                  <td>{mov.almacenOrigen?.nombre || '-'}</td>
-                  <td>{mov.almacenDestino?.nombre || '-'}</td>
+                  <td style={{ fontWeight: 500 }}>{formatOrigen(mov)}</td>
+                  <td style={{ fontWeight: 500 }}>{formatDestino(mov)}</td>
                   <td style={{ fontWeight: 600 }}>{mov.cantidad}</td>
                   <td>{format(new Date(mov.fechaMovimiento), 'dd/MM/yyyy HH:mm')}</td>
                   <td>{mov.usuario.nombre}</td>

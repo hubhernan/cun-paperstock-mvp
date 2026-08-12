@@ -129,13 +129,13 @@ async function main() {
   const almacenCentral = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {
-      nombre: 'Almacén Central',
+      nombre: 'Almacén Central Terminal 2',
       ubicacion: 'Terminal 2',
       proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      nombre: 'Almacén Central',
+      nombre: 'Almacén Central Terminal 2',
       ubicacion: 'Terminal 2',
       capacidad: 'Grande',
       proveedor: 'SITA',
@@ -145,13 +145,13 @@ async function main() {
   const almacenT4 = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000002' },
     update: {
-      nombre: 'Almacén Local',
+      nombre: 'Almacén Local Terminal 4',
       ubicacion: 'Terminal 4',
       proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000002',
-      nombre: 'Almacén Local',
+      nombre: 'Almacén Local Terminal 4',
       ubicacion: 'Terminal 4',
       capacidad: 'Mediana',
       proveedor: 'SITA',
@@ -161,13 +161,13 @@ async function main() {
   const almacenT3 = await prisma.almacen.upsert({
     where: { id: '00000000-0000-0000-0000-000000000003' },
     update: {
-      nombre: 'Almacén Local',
+      nombre: 'Almacén Local Terminal 3',
       ubicacion: 'Terminal 3',
       proveedor: 'SITA',
     },
     create: {
       id: '00000000-0000-0000-0000-000000000003',
-      nombre: 'Almacén Local',
+      nombre: 'Almacén Local Terminal 3',
       ubicacion: 'Terminal 3',
       capacidad: 'Mediana',
       proveedor: 'SITA',

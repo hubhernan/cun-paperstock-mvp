@@ -71,9 +71,7 @@ export const startAlertService = () => {
         
         const worstNivel = Math.min(atb, btp);
 
-        if (estado === 'OFFLINE') {
-          severity = 'OFFLINE';
-        } else if (worstNivel <= 5) {
+        if (worstNivel <= 5) {
           severity = 'CRITICA';
         } else if (worstNivel <= 10) {
           severity = 'NIVEL_2';
@@ -88,31 +86,57 @@ export const startAlertService = () => {
           lastAlertState[kiosko.id] = stateKey; // Registrar que ya alertamos esto
 
           const tipoPapelAsignado = kiosko.asignaciones[0]?.tipoPapel;
-          let mensaje = '';
-          
-          if (severity === 'OFFLINE') {
-            mensaje = `Kiosko ${kiosko.modelo} en ${kiosko.area.nombre} se encuentra OFFLINE.`;
-          } else {
-            const lowType = atb <= btp ? 'ATB' : 'BTP';
-            mensaje = `Kiosko ${kiosko.modelo} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType}: ${worstNivel}% restante.`;
+          const lowType = atb <= btp ? 'ATB' : 'BTP';
+          const mensaje = `Kiosko ${kiosko.identificadorUnico} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType} (semáforo en Rojo).`;
+
+          // Obtener tipoPapelId para guardar la alerta
+          let targetPapelId = tipoPapelAsignado?.id;
+          if (!targetPapelId) {
+            const firstPapel = await prisma.tipoPapel.findFirst({
+              where: { codigo: { contains: lowType, mode: 'insensitive' } }
+            }) || await prisma.tipoPapel.findFirst();
+            targetPapelId = firstPapel?.id;
           }
 
-          if (tipoPapelAsignado) {
-            // Guardar alerta en base de datos
-            const nuevaAlerta = await prisma.alertaStock.create({
-              data: {
-                tipoPapelId: tipoPapelAsignado.id,
-                mensaje: mensaje
+          if (targetPapelId) {
+            const alertaExistente = await prisma.alertaStock.findFirst({
+              where: {
+                leida: false,
+                mensaje: { contains: kiosko.identificadorUnico }
               }
             });
 
-
+            if (alertaExistente) {
+              await prisma.alertaStock.update({
+                where: { id: alertaExistente.id },
+                data: {
+                  mensaje: mensaje,
+                  fecha: new Date(),
+                  tipoPapelId: targetPapelId
+                }
+              });
+            } else {
+              await prisma.alertaStock.create({
+                data: {
+                  tipoPapelId: targetPapelId,
+                  mensaje: mensaje
+                }
+              });
+            }
           }
         } else if (severity === 'OK') {
           // Resetear si volvió a la normalidad
           if (lastAlertState[kiosko.id]) {
              delete lastAlertState[kiosko.id];
           }
+          // Marcar automáticamente como atendidas/leídas las alertas de este kiosko
+          await prisma.alertaStock.updateMany({
+            where: {
+              leida: false,
+              mensaje: { contains: kiosko.identificadorUnico }
+            },
+            data: { leida: true }
+          });
         }
       }
     } catch (error) {

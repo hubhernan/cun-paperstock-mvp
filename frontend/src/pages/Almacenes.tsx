@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, MapPin, X, Package } from 'lucide-react';
+import { Plus, MapPin, X, Package, Check, AlertCircle, Edit3, CheckCircle2 } from 'lucide-react';
 
 interface Almacen {
   id: string;
@@ -23,19 +23,28 @@ const Almacenes: React.FC = () => {
   const [loadingStock, setLoadingStock] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchAlmacenes = async () => {
-      try {
-        const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes');
-        if (response.data.success) {
-          setAlmacenes(response.data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching almacenes', error);
-      } finally {
-        setLoading(false);
+  // Estados para verificación de stock y discrepancias
+  const [verificandoId, setVerificandoId] = useState<string | null>(null);
+  const [editandoStockId, setEditandoStockId] = useState<string | null>(null);
+  const [conteoFisico, setConteoFisico] = useState<number>(0);
+  const [comentarioDiscrepancia, setComentarioDiscrepancia] = useState<string>('');
+  const [verificacionState, setVerificacionState] = useState<Record<string, 'OK' | 'DISCREPANCIA'>>({});
+  const [feedbackMsg, setFeedbackMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
+
+  const fetchAlmacenes = async () => {
+    try {
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes');
+      if (response.data.success) {
+        setAlmacenes(response.data.data);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching almacenes', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAlmacenes();
   }, []);
 
@@ -43,6 +52,8 @@ const Almacenes: React.FC = () => {
     setSelectedAlmacen(almacen);
     setModalOpen(true);
     setLoadingStock(true);
+    setFeedbackMsg(null);
+    setEditandoStockId(null);
     try {
       const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + `/api/almacenes/${almacen.id}/stock`);
       if (response.data.success) {
@@ -52,6 +63,67 @@ const Almacenes: React.FC = () => {
       console.error('Error fetching stock detalle', error);
     } finally {
       setLoadingStock(false);
+    }
+  };
+
+  const handleConfirmarOK = async (stockItem: any) => {
+    if (!selectedAlmacen) return;
+    setVerificandoId(stockItem.id);
+    setFeedbackMsg(null);
+    try {
+      const response = await axios.post(
+        ((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes/verificar-stock',
+        {
+          almacenId: selectedAlmacen.id,
+          tipoPapelId: stockItem.tipoPapelId,
+          stockCalculado: stockItem.cantidadActual,
+          stockFisico: stockItem.cantidadActual
+        }
+      );
+      if (response.data.success) {
+        setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'OK' }));
+        setFeedbackMsg({ tipo: 'success', texto: response.data.message });
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ tipo: 'error', texto: err.response?.data?.message || 'Error al confirmar stock' });
+    } finally {
+      setVerificandoId(null);
+    }
+  };
+
+  const handleIniciarAjuste = (stockItem: any) => {
+    setEditandoStockId(stockItem.id);
+    setConteoFisico(stockItem.cantidadActual);
+    setComentarioDiscrepancia('');
+    setFeedbackMsg(null);
+  };
+
+  const handleGuardarDiscrepancia = async (stockItem: any) => {
+    if (!selectedAlmacen) return;
+    setVerificandoId(stockItem.id);
+    setFeedbackMsg(null);
+    try {
+      const response = await axios.post(
+        ((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes/verificar-stock',
+        {
+          almacenId: selectedAlmacen.id,
+          tipoPapelId: stockItem.tipoPapelId,
+          stockCalculado: stockItem.cantidadActual,
+          stockFisico: conteoFisico,
+          comentarios: comentarioDiscrepancia
+        }
+      );
+      if (response.data.success) {
+        setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'DISCREPANCIA' }));
+        setFeedbackMsg({ tipo: 'success', texto: response.data.message });
+        setEditandoStockId(null);
+        handleVerStock(selectedAlmacen);
+        fetchAlmacenes();
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ tipo: 'error', texto: err.response?.data?.message || 'Error al registrar discrepancia' });
+    } finally {
+      setVerificandoId(null);
     }
   };
 
@@ -137,7 +209,7 @@ const Almacenes: React.FC = () => {
       {/* Modal de Stock a Detalle */}
       {modalOpen && selectedAlmacen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '700px' }}>
+          <div className="modal-content" style={{ maxWidth: '850px' }}>
             <div className="modal-header">
               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Package size={20} style={{ color: 'var(--color-primary)' }} />
@@ -149,13 +221,30 @@ const Almacenes: React.FC = () => {
             </div>
             
             <div style={{ padding: '1rem 0' }}>
+              {feedbackMsg && (
+                <div style={{ 
+                  padding: '0.75rem 1rem', 
+                  borderRadius: '6px', 
+                  marginBottom: '1rem', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  fontSize: '0.875rem',
+                  background: feedbackMsg.tipo === 'success' ? '#d1fae5' : '#fee2e2',
+                  color: feedbackMsg.tipo === 'success' ? '#047857' : '#b91c1c'
+                }}>
+                  {feedbackMsg.tipo === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                  {feedbackMsg.texto}
+                </div>
+              )}
+
               {loadingStock ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
                   Cargando detalle de stock...
                 </div>
               ) : stockDetalle.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                  No hay lotes con stock en este almacén.
+                  No hay stock en este almacén.
                 </div>
               ) : (
                 <div className="table-container">
@@ -163,40 +252,121 @@ const Almacenes: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Código</th>
-                        <th>Lote</th>
-                        <th>Cantidad</th>
-                        <th>Cajas</th>
+                        <th>Cantidad Sistema</th>
+                        <th>Rollos</th>
                         <th>Tipo</th>
+                        <th>Verificación en Sitio</th>
                       </tr>
                     </thead>
                     <tbody>
                       {stockDetalle.map((stockItem) => {
                         const esATB = stockItem.tipoPapel?.codigo?.includes('ATB');
-                        const cajas = Math.floor(stockItem.cantidadActual / (stockItem.tipoPapel?.cantidadPorCaja || 1));
-                        const rollosSueltos = stockItem.cantidadActual % (stockItem.tipoPapel?.cantidadPorCaja || 1);
+                        const esCorrecto = verificacionState[stockItem.id] === 'OK';
+                        const esEditando = editandoStockId === stockItem.id;
                         return (
-                          <tr key={stockItem.id}>
-                            <td style={{ fontWeight: 500, color: esATB ? 'var(--color-primary)' : 'var(--color-warning)' }}>
-                              {stockItem.tipoPapel?.codigo || 'N/A'}
-                            </td>
-                            <td>{stockItem.lote || 'Sin Lote'}</td>
-                            <td style={{ fontWeight: 'bold' }}>{stockItem.cantidadActual}</td>
-                            <td>
-                              {cajas > 0 ? `${cajas} caja(s)` : ''} {rollosSueltos > 0 ? `+ ${rollosSueltos} rollo(s)` : ''}
-                            </td>
-                            <td>
-                              <span style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                borderRadius: '12px', 
-                                fontSize: '0.75rem', 
-                                fontWeight: 600,
-                                background: esATB ? '#e0e7ff' : '#fef3c7',
-                                color: esATB ? 'var(--color-primary)' : 'var(--color-warning)'
-                              }}>
-                                {esATB ? 'ATB' : 'BTP'}
-                              </span>
-                            </td>
-                          </tr>
+                          <React.Fragment key={stockItem.id}>
+                            <tr>
+                              <td style={{ fontWeight: 500, color: esATB ? 'var(--color-primary)' : 'var(--color-warning)' }}>
+                                {stockItem.tipoPapel?.codigo || 'N/A'}
+                              </td>
+                              <td style={{ fontWeight: 'bold' }}>{stockItem.cantidadActual}</td>
+                              <td>
+                                {stockItem.cantidadActual} rollo(s)
+                              </td>
+                              <td>
+                                <span style={{ 
+                                  padding: '0.25rem 0.5rem', 
+                                  borderRadius: '12px', 
+                                  fontSize: '0.75rem', 
+                                  fontWeight: 600,
+                                  background: esATB ? '#e0e7ff' : '#fef3c7',
+                                  color: esATB ? 'var(--color-primary)' : 'var(--color-warning)'
+                                }}>
+                                  {esATB ? 'ATB' : 'BTP'}
+                                </span>
+                              </td>
+                              <td>
+                                {esCorrecto ? (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-success)', fontWeight: 600, fontSize: '0.85rem' }}>
+                                    <CheckCircle2 size={16} /> Verificado OK
+                                  </span>
+                                ) : (
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button 
+                                      className="btn btn-primary"
+                                      style={{ background: 'var(--color-success)', padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                      onClick={() => handleConfirmarOK(stockItem)}
+                                      disabled={verificandoId === stockItem.id}
+                                    >
+                                      <Check size={14} /> OK (Correcto)
+                                    </button>
+                                    <button 
+                                      className="btn btn-primary"
+                                      style={{ background: 'var(--color-warning)', padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                      onClick={() => handleIniciarAjuste(stockItem)}
+                                      disabled={verificandoId === stockItem.id}
+                                    >
+                                      <Edit3 size={14} /> Discrepancia
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+
+                            {/* Sub-formulario inline para reporte de discrepancia */}
+                            {esEditando && (
+                              <tr>
+                                <td colSpan={5} style={{ background: '#fff7ed', padding: '0.75rem', borderRadius: '6px', border: '1px solid #ffedd5' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <strong style={{ fontSize: '0.85rem', color: '#c2410c' }}>
+                                      Reportar Discrepancia Física: {stockItem.tipoPapel?.codigo}
+                                    </strong>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                      <div style={{ flex: 1, minWidth: '140px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#9a3412', marginBottom: '0.25rem' }}>Conteo Físico Real (Rollos)</label>
+                                        <input 
+                                          type="number" 
+                                          min="0"
+                                          className="input-field"
+                                          style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                                          value={conteoFisico} 
+                                          onChange={e => setConteoFisico(Number(e.target.value))} 
+                                        />
+                                      </div>
+                                      <div style={{ flex: 2, minWidth: '200px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#9a3412', marginBottom: '0.25rem' }}>Motivo / Observación (Opcional)</label>
+                                        <input 
+                                          type="text" 
+                                          placeholder="Ej. Faltan 10 rollos no contabilizados en sistema"
+                                          className="input-field"
+                                          style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                                          value={comentarioDiscrepancia} 
+                                          onChange={e => setComentarioDiscrepancia(e.target.value)} 
+                                        />
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                                      <button 
+                                        className="btn" 
+                                        style={{ background: '#e2e8f0', color: '#475569', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                        onClick={() => setEditandoStockId(null)}
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button 
+                                        className="btn btn-primary" 
+                                        style={{ background: 'var(--color-danger)', padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+                                        onClick={() => handleGuardarDiscrepancia(stockItem)}
+                                        disabled={verificandoId === stockItem.id}
+                                      >
+                                        <AlertCircle size={14} /> Registrar Incidente y Ajustar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

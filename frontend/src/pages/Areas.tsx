@@ -39,20 +39,91 @@ const Areas: React.FC = () => {
   const [areas, setAreas] = useState<Area[]>([]);
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [loading, setLoading] = useState(true);
-  const [liveData, setLiveData] = useState<Record<string, { nivelAtb: number; nivelBtp: number; estadoConexion: string }>>({});
   const [filterArea, setFilterArea] = useState<string>('Todas');
 
   // Modal states
   const [selectedKiosko, setSelectedKiosko] = useState<Periferico | null>(null);
+  const [selectedAreaOfKiosko, setSelectedAreaOfKiosko] = useState<Area | null>(null);
   const [actionType, setActionType] = useState('Cambio de Papel ATB');
   const [selectedAlmacen, setSelectedAlmacen] = useState('');
   const [comentarios, setComentarios] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // Manual levels inputs
   const [nivelAtbInput, setNivelAtbInput] = useState(100);
   const [nivelBtpInput, setNivelBtpInput] = useState(100);
   const [estadoConexionInput, setEstadoConexionInput] = useState('ONLINE');
+
+  const getAlmacenesCompatibles = (kiosko: Periferico | null, areaOfKiosko?: Area | null) => {
+    if (!kiosko) return almacenes;
+    const id = kiosko.identificadorUnico.toUpperCase();
+    const terminalArea = (areaOfKiosko?.terminal || areaOfKiosko?.nombre || '').toUpperCase();
+
+    let targetTerm = '';
+    if (id.includes('CUN2') || terminalArea.includes('TERMINAL 2') || terminalArea.includes('T2')) {
+      targetTerm = '2';
+    } else if (id.includes('CUN3') || terminalArea.includes('TERMINAL 3') || terminalArea.includes('T3')) {
+      targetTerm = '3';
+    } else if (id.includes('CUN4') || terminalArea.includes('TERMINAL 4') || terminalArea.includes('T4')) {
+      targetTerm = '4';
+    }
+
+    if (targetTerm) {
+      const filtrados = almacenes.filter(a => {
+        const nombre = a.nombre.toUpperCase();
+        const ubi = (a.ubicacion || '').toUpperCase();
+        if (targetTerm === '2') return nombre.includes('CENTRAL') || nombre.includes('TERMINAL 2') || ubi.includes('TERMINAL 2') || ubi.includes('T2');
+        if (targetTerm === '3') return nombre.includes('TERMINAL 3') || ubi.includes('TERMINAL 3') || ubi.includes('T3');
+        if (targetTerm === '4') return nombre.includes('TERMINAL 4') || ubi.includes('TERMINAL 4') || ubi.includes('T4');
+        return true;
+      });
+      if (filtrados.length > 0) return filtrados;
+    }
+    return almacenes;
+  };
+
+  const handleOpenModal = (kiosko: Periferico, area: Area) => {
+    setSelectedKiosko(kiosko);
+    setSelectedAreaOfKiosko(area);
+    setActionType('Cambio de Papel ATB');
+    setComentarios('');
+    setModalError('');
+
+    const compatibles = getAlmacenesCompatibles(kiosko, area);
+    if (compatibles.length > 0) {
+      setSelectedAlmacen(compatibles[0].id);
+    } else {
+      setSelectedAlmacen('');
+    }
+  };
+
+  const handleUpdateSemaforo = async (perifericoId: string, tipo: 'ATB' | 'BTP', nuevoNivel: number) => {
+    // Actualización inmediata local sin tocar el otro tipo de papel
+    setAreas(prevAreas => 
+      prevAreas.map(area => ({
+        ...area,
+        perifericos: area.perifericos.map(p => {
+          if (p.id === perifericoId) {
+            return {
+              ...p,
+              nivelAtb: tipo === 'ATB' ? nuevoNivel : p.nivelAtb,
+              nivelBtp: tipo === 'BTP' ? nuevoNivel : p.nivelBtp,
+            };
+          }
+          return p;
+        })
+      }))
+    );
+
+    try {
+      const payload = tipo === 'ATB' ? { nivelAtb: nuevoNivel } : { nivelBtp: nuevoNivel };
+      await api.patch(`/perifericos/${perifericoId}/nivel`, payload);
+    } catch (err) {
+      console.error('Error al actualizar semáforo', err);
+      fetchData(); // En caso de fallo de red, sincronizar estado original
+    }
+  };
 
   useEffect(() => {
     if (selectedKiosko) {
@@ -88,9 +159,10 @@ const Areas: React.FC = () => {
   const handleRegisterAction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedKiosko) return;
+    setModalError('');
 
-    if (actionType.includes('Cambio de Papel') && !selectedAlmacen) {
-      alert('Por favor selecciona el almacén de donde proviene el papel.');
+    if (!selectedAlmacen) {
+      setModalError('Por favor selecciona el almacén de donde proviene el papel.');
       return;
     }
 
@@ -100,18 +172,9 @@ const Areas: React.FC = () => {
       const payload: any = {
         perifericoId: selectedKiosko.id,
         accion: actionType,
-        comentarios
+        comentarios,
+        almacenOrigenId: selectedAlmacen
       };
-
-      if (actionType.includes('Cambio de Papel')) {
-        payload.almacenOrigenId = selectedAlmacen;
-      }
-
-      if (actionType === 'Inspección de Rutina (Lectura de Niveles)') {
-        payload.nivelAtb = nivelAtbInput;
-        payload.nivelBtp = nivelBtpInput;
-        payload.estadoConexion = estadoConexionInput;
-      }
 
       const res = await api.post('/intervenciones', payload);
 
@@ -120,9 +183,10 @@ const Areas: React.FC = () => {
         await fetchData();
         closeModal();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Error al registrar la acción.');
+      const errMsg = error.response?.data?.message || error.message || 'Error al registrar la acción.';
+      setModalError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,9 +194,11 @@ const Areas: React.FC = () => {
 
   const closeModal = () => {
     setSelectedKiosko(null);
+    setSelectedAreaOfKiosko(null);
     setActionType('Cambio de Papel ATB');
     setSelectedAlmacen('');
     setComentarios('');
+    setModalError('');
   };
 
   return (
@@ -188,70 +254,197 @@ const Areas: React.FC = () => {
                      <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>Sin periféricos asignados</p>
                   ) : (
                   area.perifericos.map(p => {
-                    const isOnline = (liveData[p.id]?.estadoConexion ?? p.estadoConexion) === 'ONLINE';
-                    const atb = liveData[p.id]?.nivelAtb ?? p.nivelAtb ?? 100;
-                    const btp = liveData[p.id]?.nivelBtp ?? p.nivelBtp ?? 100;
-                    const worstPaper = Math.min(atb, btp);
+                    const atb = p.nivelAtb ?? 100;
+                    const btp = p.nivelBtp ?? 100;
                     
-                    let borderColor = 'var(--color-success)';
-                    let statusBg = '#dcfce7';
-                    let statusColor = 'var(--color-success)';
-                    
-                    if (!isOnline) {
-                      borderColor = 'var(--color-text-muted)';
-                      statusBg = '#f1f5f9';
-                      statusColor = 'var(--color-text-muted)';
-                    } else if (worstPaper < 10) {
-                      borderColor = 'var(--color-danger)';
-                      statusBg = '#fee2e2';
-                      statusColor = 'var(--color-danger)';
-                    } else if (worstPaper <= 20) {
-                      borderColor = 'var(--color-warning)';
-                      statusBg = '#fef3c7';
-                      statusColor = 'var(--color-warning)';
+                    const getEstadoInsumo = (nivel: number) => {
+                      if (nivel < 10) return 'ROJO';
+                      if (nivel <= 20) return 'NARANJA';
+                      return 'VERDE';
+                    };
+
+                    const estadoATB = getEstadoInsumo(atb);
+                    const estadoBTP = getEstadoInsumo(btp);
+
+                    let statusColor = '#10b981';
+                    let glowBoxShadow = '0 0 10px rgba(16, 185, 129, 0.25)';
+
+                    if (estadoATB === 'ROJO' || estadoBTP === 'ROJO') {
+                      statusColor = '#ef4444';
+                      glowBoxShadow = '0 0 15px rgba(239, 68, 68, 0.45)';
+                    } else if (estadoATB === 'NARANJA' || estadoBTP === 'NARANJA') {
+                      statusColor = '#f59e0b';
+                      glowBoxShadow = '0 0 12px rgba(245, 158, 11, 0.35)';
                     }
 
                     return (
-                      <div key={p.id} style={{ border: `2px solid ${borderColor}`, borderRadius: '8px', padding: '1rem', background: '#fff', position: 'relative', overflow: 'hidden' }}>
-                        
+                      <div 
+                        key={p.id} 
+                        style={{ 
+                          border: `2px solid ${statusColor}`, 
+                          boxShadow: glowBoxShadow,
+                          borderRadius: '10px', 
+                          padding: '1rem', 
+                          background: '#fff', 
+                          position: 'relative', 
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
                         {/* Indicador superior */}
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: borderColor }} />
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: statusColor }} />
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', marginTop: '0.25rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.1rem' }}>
-                            <Printer size={18} color={borderColor} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', marginTop: '0.25rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.15rem' }}>
+                            <Printer size={18} color={statusColor} />
                             {p.identificadorUnico}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', background: statusBg, color: statusColor, padding: '0.25rem 0.5rem', borderRadius: '12px', fontWeight: 'bold' }}>
-                            {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-                            {isOnline ? 'ONLINE' : 'OFFLINE'}
                           </div>
                         </div>
                         
-                        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', margin: '0 0 1rem 0' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem 0' }}>
                           {p.marca} {p.modelo}
                         </p>
                         
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '8px' }}>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                               <Battery size={16} color={!isOnline ? 'gray' : atb < 10 ? 'red' : atb <= 20 ? 'orange' : 'green'} />
-                               <span style={{ fontSize: '0.875rem', fontWeight: 500, color: !isOnline ? 'gray' : 'inherit' }}>Nivel ATB</span>
+                        {/* Botonera de Semáforo de Papel */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                           {/* Fila ATB */}
+                           <div>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)' }}>Semáforo ATB</span>
+                               <span style={{ 
+                                 fontSize: '0.7rem', 
+                                 fontWeight: 700, 
+                                 padding: '0.15rem 0.4rem', 
+                                 borderRadius: '8px', 
+                                 background: estadoATB === 'VERDE' ? '#dcfce7' : estadoATB === 'NARANJA' ? '#fef3c7' : '#fee2e2',
+                                 color: estadoATB === 'VERDE' ? '#15803d' : estadoATB === 'NARANJA' ? '#b45309' : '#b91c1c'
+                               }}>
+                                 {estadoATB === 'VERDE' ? 'Óptimo' : estadoATB === 'NARANJA' ? '10-20%' : 'Crítico'}
+                               </span>
                              </div>
-                             <strong style={{ fontSize: '1.1rem', color: !isOnline ? 'gray' : atb < 10 ? 'red' : atb <= 20 ? 'orange' : 'green' }}>
-                               {atb}%
-                               {!isOnline && <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 'normal', marginTop: '-4px' }}>(Últ. registro)</span>}
-                             </strong>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.35rem' }}>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'ATB', 100)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoATB === 'VERDE' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                                   background: estadoATB === 'VERDE' ? '#10b981' : '#ffffff',
+                                   color: estadoATB === 'VERDE' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🟢 Óptimo
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'ATB', 15)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoATB === 'NARANJA' ? '2px solid #f59e0b' : '1px solid #cbd5e1',
+                                   background: estadoATB === 'NARANJA' ? '#f59e0b' : '#ffffff',
+                                   color: estadoATB === 'NARANJA' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🟠 10-20%
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'ATB', 5)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoATB === 'ROJO' ? '2px solid #ef4444' : '1px solid #cbd5e1',
+                                   background: estadoATB === 'ROJO' ? '#ef4444' : '#ffffff',
+                                   color: estadoATB === 'ROJO' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🔴 Crítico
+                               </button>
+                             </div>
                            </div>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                               <Battery size={16} color={!isOnline ? 'gray' : btp < 10 ? 'red' : btp <= 20 ? 'orange' : 'green'} />
-                               <span style={{ fontSize: '0.875rem', fontWeight: 500, color: !isOnline ? 'gray' : 'inherit' }}>Nivel BTP</span>
+
+                           {/* Fila BTP */}
+                           <div>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)' }}>Semáforo BTP</span>
+                               <span style={{ 
+                                 fontSize: '0.7rem', 
+                                 fontWeight: 700, 
+                                 padding: '0.15rem 0.4rem', 
+                                 borderRadius: '8px', 
+                                 background: estadoBTP === 'VERDE' ? '#dcfce7' : estadoBTP === 'NARANJA' ? '#fef3c7' : '#fee2e2',
+                                 color: estadoBTP === 'VERDE' ? '#15803d' : estadoBTP === 'NARANJA' ? '#b45309' : '#b91c1c'
+                               }}>
+                                 {estadoBTP === 'VERDE' ? 'Óptimo' : estadoBTP === 'NARANJA' ? '10-20%' : 'Crítico'}
+                               </span>
                              </div>
-                             <strong style={{ fontSize: '1.1rem', color: !isOnline ? 'gray' : btp < 10 ? 'red' : btp <= 20 ? 'orange' : 'green' }}>
-                               {btp}%
-                               {!isOnline && <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 'normal', marginTop: '-4px' }}>(Últ. registro)</span>}
-                             </strong>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.35rem' }}>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'BTP', 100)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoBTP === 'VERDE' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                                   background: estadoBTP === 'VERDE' ? '#10b981' : '#ffffff',
+                                   color: estadoBTP === 'VERDE' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🟢 Óptimo
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'BTP', 15)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoBTP === 'NARANJA' ? '2px solid #f59e0b' : '1px solid #cbd5e1',
+                                   background: estadoBTP === 'NARANJA' ? '#f59e0b' : '#ffffff',
+                                   color: estadoBTP === 'NARANJA' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🟠 10-20%
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleUpdateSemaforo(p.id, 'BTP', 5)}
+                                 style={{
+                                   padding: '0.3rem 0.2rem',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 600,
+                                   borderRadius: '6px',
+                                   border: estadoBTP === 'ROJO' ? '2px solid #ef4444' : '1px solid #cbd5e1',
+                                   background: estadoBTP === 'ROJO' ? '#ef4444' : '#ffffff',
+                                   color: estadoBTP === 'ROJO' ? '#ffffff' : '#475569',
+                                   cursor: 'pointer',
+                                   transition: 'all 0.2s ease'
+                                 }}
+                               >
+                                 🔴 Crítico
+                               </button>
+                             </div>
                            </div>
                         </div>
 
@@ -259,7 +452,7 @@ const Areas: React.FC = () => {
                         <button 
                           className="btn btn-secondary w-full" 
                           style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
-                          onClick={() => setSelectedKiosko(p)}
+                          onClick={() => handleOpenModal(p, area)}
                         >
                           <Wrench size={16} />
                           Registrar Acción
@@ -292,6 +485,12 @@ const Areas: React.FC = () => {
             </p>
 
             <form onSubmit={handleRegisterAction}>
+              {modalError && (
+                <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #fca5a5' }}>
+                  <strong>Error:</strong> {modalError}
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Tipo de Acción *</label>
                 <select 
@@ -302,76 +501,25 @@ const Areas: React.FC = () => {
                 >
                   <option value="Cambio de Papel ATB">Cambio de Papel ATB</option>
                   <option value="Cambio de Papel BTP">Cambio de Papel BTP</option>
-                  <option value="Inspección de Rutina (Lectura de Niveles)">Inspección de Rutina (Lectura de Niveles)</option>
-                  <option value="Reset Físico (Reinicio)">Reset Físico (Reinicio)</option>
-                  <option value="Limpieza de Rodillos / Sensores">Limpieza de Rodillos / Sensores</option>
-                  <option value="Calibración">Calibración</option>
-                  <option value="Mantenimiento Correctivo (Otro)">Mantenimiento Correctivo (Otro)</option>
                 </select>
               </div>
 
-              {actionType.includes('Cambio de Papel') && (
-                <div className="form-group">
-                  <label>Origen del Papel (Almacén) *</label>
-                  <select 
-                    className="input-field" 
-                    value={selectedAlmacen} 
-                    onChange={e => setSelectedAlmacen(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Selecciona el Almacén --</option>
-                    {almacenes.map(almacen => (
-                      <option key={almacen.id} value={almacen.id}>
-                        {almacen.nombre} ({almacen.ubicacion})
-                      </option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: '0.75rem', color: 'gray' }}>Indica de qué bodega tomaste el nuevo rollo.</span>
-                </div>
-              )}
-
-              {actionType === 'Inspección de Rutina (Lectura de Niveles)' && (
-                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-primary-dark)' }}>Valores Físicos Observados</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Nivel ATB %</label>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        max="100" 
-                        className="input-field" 
-                        value={nivelAtbInput} 
-                        onChange={e => setNivelAtbInput(Number(e.target.value))} 
-                        required 
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Nivel BTP %</label>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        max="100" 
-                        className="input-field" 
-                        value={nivelBtpInput} 
-                        onChange={e => setNivelBtpInput(Number(e.target.value))} 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500 }}>Estado de Conexión</label>
-                    <select 
-                      className="input-field" 
-                      value={estadoConexionInput} 
-                      onChange={e => setEstadoConexionInput(e.target.value)}
-                    >
-                      <option value="ONLINE">ONLINE</option>
-                      <option value="OFFLINE">OFFLINE</option>
-                    </select>
-                  </div>
-                </div>
-              )}
+              <div className="form-group">
+                <label>Origen del Papel (Almacén) *</label>
+                <select 
+                  className="input-field" 
+                  value={selectedAlmacen} 
+                  onChange={e => setSelectedAlmacen(e.target.value)}
+                  required
+                >
+                  {getAlmacenesCompatibles(selectedKiosko, selectedAreaOfKiosko).map(almacen => (
+                    <option key={almacen.id} value={almacen.id}>
+                      {almacen.nombre} ({almacen.ubicacion})
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '0.75rem', color: 'gray' }}>Bodega asignada según la Terminal del kiosko.</span>
+              </div>
 
               <div className="form-group">
                 <label>Comentarios / Observaciones</label>
