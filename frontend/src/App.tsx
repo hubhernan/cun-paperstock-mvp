@@ -12,7 +12,6 @@ import Areas from './pages/Areas';
 import Movimientos from './pages/Movimientos';
 import Usuarios from './pages/Usuarios';
 import Reportes from './pages/Reportes';
-import Lotes from './pages/Lotes';
 import Incidentes from './pages/Incidentes';
 import Alertas from './pages/Alertas';
 import Auditoria from './pages/Auditoria';
@@ -46,7 +45,6 @@ const AppRoutes = () => {
         <Route path="movimientos" element={<Movimientos />} />
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="reportes" element={<Reportes />} />
-        <Route path="lotes" element={<Lotes />} />
         <Route path="incidentes" element={<Incidentes />} />
         <Route path="alertas" element={<Alertas />} />
         <Route path="auditoria" element={<Auditoria />} />

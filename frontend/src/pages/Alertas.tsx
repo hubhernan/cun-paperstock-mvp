@@ -125,19 +125,47 @@ const Alertas: React.FC = () => {
     };
   };
 
-  const filteredAlertas = alertas.filter(al => {
-    const matchesBusqueda = al.mensaje.toLowerCase().includes(busqueda.toLowerCase()) ||
-      (al.tipoPapel?.codigo || '').toLowerCase().includes(busqueda.toLowerCase());
-    
-    if (!matchesBusqueda) return false;
-
-    if (filtroUbicacion === 'ALL') return true;
-    if (filtroUbicacion === 'ALMACEN') {
-      const msg = al.mensaje.toUpperCase();
-      return msg.includes('GLOBAL') || msg.includes('ALMACÉN') || msg.includes('ALMACEN');
+  const getKioskoCode = (mensaje: string): string => {
+    const match = mensaje.match(/CUN\d[A-Z0-9]{5,}/i) || mensaje.match(/Kiosko\s+([A-Z0-9_-]+)/i);
+    if (match) {
+      return match[0].toUpperCase();
     }
-    return al.mensaje.includes(filtroUbicacion);
-  });
+    return '';
+  };
+
+  const filteredAlertas = alertas
+    .filter(al => {
+      const matchesBusqueda = al.mensaje.toLowerCase().includes(busqueda.toLowerCase()) ||
+        (al.tipoPapel?.codigo || '').toLowerCase().includes(busqueda.toLowerCase());
+      
+      if (!matchesBusqueda) return false;
+
+      if (filtroUbicacion === 'ALL') return true;
+      if (filtroUbicacion === 'ALMACEN') {
+        const msg = al.mensaje.toUpperCase();
+        return msg.includes('GLOBAL') || msg.includes('ALMACÉN') || msg.includes('ALMACEN');
+      }
+      return al.mensaje.includes(filtroUbicacion);
+    })
+    .sort((a, b) => {
+      const isGlobalA = a.mensaje.toUpperCase().includes('GLOBAL') || a.mensaje.toUpperCase().includes('ALMACÉN');
+      const isGlobalB = b.mensaje.toUpperCase().includes('GLOBAL') || b.mensaje.toUpperCase().includes('ALMACÉN');
+
+      if (isGlobalA && !isGlobalB) return -1;
+      if (!isGlobalA && isGlobalB) return 1;
+
+      const codeA = getKioskoCode(a.mensaje);
+      const codeB = getKioskoCode(b.mensaje);
+
+      if (codeA && codeB) {
+        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      if (codeA && !codeB) return -1;
+      if (!codeA && codeB) return 1;
+
+      return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+    });
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>

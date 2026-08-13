@@ -62,10 +62,6 @@ const Layout: React.FC = () => {
                 <FileText size={20} />
                 Reportes
               </Link>
-              <Link to="/lotes" className={`nav-link ${isActive('/lotes') ? 'active' : ''}`}>
-                <Layers size={20} />
-                Lotes (FIFO)
-              </Link>
               <Link to="/incidentes" className={`nav-link ${isActive('/incidentes') ? 'active' : ''}`}>
                 <AlertTriangle size={20} />
                 Incidentes

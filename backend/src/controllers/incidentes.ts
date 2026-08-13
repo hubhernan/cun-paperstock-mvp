@@ -71,12 +71,38 @@ export const createIncidente = async (req: Request, res: Response) => {
 export const updateIncidenteStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { estado } = req.body;
+    const { estado, comentarios } = req.body;
     const usuarioId = (req as any).user.id;
+
+    const incidenteExistente = await prisma.incidenteDiscrepancia.findUnique({
+      where: { id: id as string },
+    });
+
+    if (!incidenteExistente) {
+      return res.status(404).json({ success: false, message: 'Incidente no encontrado' });
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { nombre: true }
+    });
+
+    let comentariosActualizados = incidenteExistente.comentarios || '';
+
+    if (comentarios && comentarios.trim()) {
+      const nowFormatted = new Date().toLocaleString('es-MX', { timeZone: 'America/Cancun' });
+      const nuevaNota = `\n[${nowFormatted} - ${usuario?.nombre || 'Usuario'} (${estado})]: ${comentarios.trim()}`;
+      comentariosActualizados = comentariosActualizados ? comentariosActualizados + nuevaNota : nuevaNota.trim();
+    }
+
+    const dataToUpdate: any = {};
+    if (estado) dataToUpdate.estado = estado;
+    if (comentarios && comentarios.trim()) dataToUpdate.comentarios = comentariosActualizados;
 
     const incidenteActualizado = await prisma.incidenteDiscrepancia.update({
       where: { id: id as string },
-      data: { estado }
+      data: dataToUpdate,
+      include: { ingeniero: true }
     });
 
     // Auditoría
@@ -86,11 +112,11 @@ export const updateIncidenteStatus = async (req: Request, res: Response) => {
         accion: 'CAMBIO_ESTADO_INCIDENTE',
         entidad: 'IncidenteDiscrepancia',
         entidadId: incidenteActualizado.id,
-        detalles: `Estado cambiado a ${estado}`
+        detalles: `Estado cambiado a ${estado}. ${comentarios ? `Nota: ${comentarios}` : ''}`
       }
     });
 
-    res.json({ success: true, data: incidenteActualizado, message: 'Estado actualizado' });
+    res.json({ success: true, data: incidenteActualizado, message: 'Estado e historial de incidente actualizados' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Error al actualizar el estado del incidente' });

@@ -3,21 +3,49 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const parseFechaInicio = (str: any): Date | undefined => {
+  if (!str) return undefined;
+  if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const parts = str.split('-').map(Number);
+    const y = parts[0] ?? 2026;
+    const m = parts[1] ?? 1;
+    const d = parts[2] ?? 1;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+  return new Date(str);
+};
+
+const parseFechaFin = (str: any): Date | undefined => {
+  if (!str) return undefined;
+  if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const parts = str.split('-').map(Number);
+    const y = parts[0] ?? 2026;
+    const m = parts[1] ?? 1;
+    const d = parts[2] ?? 1;
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  const date = new Date(str);
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
+
+const aplicarFiltroFechas = (whereObj: any, campoFecha: string, fechaInicio: any, fechaFin: any) => {
+  const gte = parseFechaInicio(fechaInicio);
+  const lte = parseFechaFin(fechaFin);
+
+  if (gte || lte) {
+    whereObj[campoFecha] = {};
+    if (gte) whereObj[campoFecha].gte = gte;
+    if (lte) whereObj[campoFecha].lte = lte;
+  }
+};
+
 export const getReporteMovimientos = async (req: Request, res: Response) => {
   try {
     const { fechaInicio, fechaFin, tipoMovimiento } = req.query;
 
     const where: any = {};
-
-    if (fechaInicio || fechaFin) {
-      where.fechaMovimiento = {};
-      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio as string);
-      if (fechaFin) {
-        const endDate = new Date(fechaFin as string);
-        endDate.setHours(23, 59, 59, 999);
-        where.fechaMovimiento.lte = endDate;
-      }
-    }
+    aplicarFiltroFechas(where, 'fechaMovimiento', fechaInicio, fechaFin);
 
     if (tipoMovimiento) {
       where.tipoMovimiento = tipoMovimiento;
@@ -55,7 +83,6 @@ export const getReporteStockValor = async (req: Request, res: Response) => {
       orderBy: { codigo: 'asc' },
     });
 
-    // Mapear los datos para devolver un arreglo plano para la tabla/reporte
     const datos = tiposPapel.map((papel) => {
       const stockTotal = papel.stocks.reduce((acc, stock) => acc + stock.cantidadActual, 0);
       const valorTotal = stockTotal * Number(papel.costoUnitario);
@@ -87,16 +114,7 @@ export const getReporteConsumoArea = async (req: Request, res: Response) => {
     const { fechaInicio, fechaFin, areaId } = req.query;
 
     const where: any = {};
-
-    if (fechaInicio || fechaFin) {
-      where.fechaAsignacion = {};
-      if (fechaInicio) where.fechaAsignacion.gte = new Date(fechaInicio as string);
-      if (fechaFin) {
-        const endDate = new Date(fechaFin as string);
-        endDate.setHours(23, 59, 59, 999);
-        where.fechaAsignacion.lte = endDate;
-      }
-    }
+    aplicarFiltroFechas(where, 'fechaAsignacion', fechaInicio, fechaFin);
 
     if (areaId) {
       where.periferico = { areaId };
@@ -130,16 +148,7 @@ export const getReporteConsumoAlmacen = async (req: Request, res: Response) => {
     const where: any = {
       tipoMovimiento: { in: ['SALIDA', 'MERMA'] },
     };
-
-    if (fechaInicio || fechaFin) {
-      where.fechaMovimiento = {};
-      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio as string);
-      if (fechaFin) {
-        const endDate = new Date(fechaFin as string);
-        endDate.setHours(23, 59, 59, 999);
-        where.fechaMovimiento.lte = endDate;
-      }
-    }
+    aplicarFiltroFechas(where, 'fechaMovimiento', fechaInicio, fechaFin);
 
     if (almacenId) {
       where.almacenOrigenId = almacenId;
@@ -166,15 +175,8 @@ export const getReporteMovimientosIngeniero = async (req: Request, res: Response
   try {
     const { fechaInicio, fechaFin, usuarioId } = req.query;
     const where: any = {};
-    if (fechaInicio || fechaFin) {
-      where.fechaMovimiento = {};
-      if (fechaInicio) where.fechaMovimiento.gte = new Date(fechaInicio as string);
-      if (fechaFin) {
-        const endDate = new Date(fechaFin as string);
-        endDate.setHours(23, 59, 59, 999);
-        where.fechaMovimiento.lte = endDate;
-      }
-    }
+    aplicarFiltroFechas(where, 'fechaMovimiento', fechaInicio, fechaFin);
+
     if (usuarioId) where.usuarioId = usuarioId;
 
     const movimientos = await prisma.movimientoInventario.findMany({
@@ -194,16 +196,7 @@ export const getReporteKioskosAbastecidos = async (req: Request, res: Response) 
     const where: any = {
       accion: { contains: 'Cambio de Papel' }
     };
-    
-    if (fechaInicio || fechaFin) {
-      where.fecha = {};
-      if (fechaInicio) where.fecha.gte = new Date(fechaInicio as string);
-      if (fechaFin) {
-        const endDate = new Date(fechaFin as string);
-        endDate.setHours(23, 59, 59, 999);
-        where.fecha.lte = endDate;
-      }
-    }
+    aplicarFiltroFechas(where, 'fecha', fechaInicio, fechaFin);
     
     const intervenciones = await prisma.intervencionKiosko.findMany({
       where,
@@ -224,8 +217,9 @@ export const getReporteKioskosAbastecidos = async (req: Request, res: Response) 
 
 export const getReporteIncidentes = async (req: Request, res: Response) => {
   try {
-    const { estado } = req.query;
+    const { fechaInicio, fechaFin, estado } = req.query;
     const where: any = {};
+    aplicarFiltroFechas(where, 'fechaIncidente', fechaInicio, fechaFin);
     if (estado) where.estado = estado;
     
     const incidentes = await prisma.incidenteDiscrepancia.findMany({

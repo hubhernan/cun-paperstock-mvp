@@ -29,9 +29,9 @@ export const createIncidente = async (data: {
   }
 };
 
-export const updateIncidenteStatus = async (id: string, estado: string) => {
+export const updateIncidenteStatus = async (id: string, estado: string, comentarios?: string) => {
   try {
-    const response = await api.patch(`/incidentes/${id}/estado`, { estado });
+    const response = await api.patch(`/incidentes/${id}/estado`, { estado, comentarios });
     return response.data;
   } catch (error) {
     console.error('Error updating incidente status', error);

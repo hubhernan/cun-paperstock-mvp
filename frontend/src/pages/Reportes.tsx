@@ -248,7 +248,7 @@ const Reportes: React.FC = () => {
           </select>
         </div>
 
-        {tipoReporte !== 'valorStock' && tipoReporte !== 'incidentesNoAtendidos' && (
+        {tipoReporte !== 'valorStock' && (
           <>
             <div>
               <label className="form-label">Fecha Inicio</label>
