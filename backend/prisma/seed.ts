@@ -4,13 +4,13 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Iniciando seed de base de datos ampliado...');
+  console.log('Sincronizando seed de base de datos con versión de producción/local...');
 
   // 1. Crear roles
   const rolesData = [
-    { nombre: 'Admin', descripcion: 'Administrador del sistema' },
-    { nombre: 'Supervisor', descripcion: 'Supervisor de almacén' },
-    { nombre: 'Operador', descripcion: 'Operador de área o inventario' },
+    { nombre: 'Admin', descripcion: 'Administrador del sistema (Super Usuario)' },
+    { nombre: 'Supervisor', descripcion: 'Supervisor de almacén y logística' },
+    { nombre: 'Operador', descripcion: 'Operador e Ingeniero de campo' },
     { nombre: 'Ejecutivo', descripcion: 'Solo lectura para dashboards' },
   ];
 
@@ -25,72 +25,76 @@ async function main() {
   }
   console.log('Roles listos.');
 
-  // 2. Crear usuario admin por defecto
+  // 2. Crear usuarios
   const adminRole = roles.find((r) => r.nombre === 'Admin');
-  let adminUser = null;
-  if (adminRole) {
-    const passwordHash = await bcrypt.hash('admin123', 10);
-    adminUser = await prisma.usuario.upsert({
-      where: { email: 'admin@cun.mx' },
-      update: {},
-      create: {
-        nombre: 'Administrador CUN',
-        email: 'admin@cun.mx',
-        passwordHash,
-        rolId: adminRole.id,
-      },
-    });
-    console.log('Usuario admin listo.');
-  }
-
   const operadorRole = roles.find((r) => r.nombre === 'Operador');
-  let operadores = [];
-  if (operadorRole) {
-    const passwordHash = await bcrypt.hash('operador123', 10);
-    const u1 = await prisma.usuario.upsert({
-      where: { email: 'ricardo@cun.mx' },
-      update: {},
-      create: {
-        nombre: 'Ricardo Hernandez',
-        email: 'ricardo@cun.mx',
-        passwordHash,
-        rolId: operadorRole.id,
-        turno: 'Mañana',
-        dispositivo: 'Tableta (iPad)',
-      },
-    });
-    const u2 = await prisma.usuario.upsert({
-      where: { email: 'flor@cun.mx' },
-      update: {},
-      create: {
-        nombre: 'Flor Toledo',
-        email: 'flor@cun.mx',
-        passwordHash,
-        rolId: operadorRole.id,
-        turno: 'Tarde',
-        dispositivo: 'Teléfono Celular',
-      },
-    });
-    const u3 = await prisma.usuario.upsert({
-      where: { email: 'sheldon@cun.mx' },
-      update: {},
-      create: {
-        nombre: 'Sheldon Craig',
-        email: 'sheldon@cun.mx',
-        passwordHash,
-        rolId: operadorRole.id,
-        turno: 'Noche',
-        dispositivo: 'Radio Troncalizado / Tableta',
-      },
-    });
-    operadores.push(u1, u2, u3);
-    console.log('Ingenieros de campo (Usuarios) listos.');
-  }
+  const supervisorRole = roles.find((r) => r.nombre === 'Supervisor');
+
+  const passwordHashAdmin = await bcrypt.hash('admin123', 10);
+  const passwordHashOp = await bcrypt.hash('operador123', 10);
+
+  const adminUser = await prisma.usuario.upsert({
+    where: { email: 'admin@cun.mx' },
+    update: { activo: true },
+    create: {
+      nombre: 'Administrador CUN',
+      email: 'admin@cun.mx',
+      passwordHash: passwordHashAdmin,
+      rolId: adminRole!.id,
+      turno: 'Matutino',
+      dispositivo: 'HP Server',
+      activo: true
+    },
+  });
+
+  const ricardoUser = await prisma.usuario.upsert({
+    where: { email: 'ricardo@cun.mx' },
+    update: { activo: true, dispositivo: 'iPad' },
+    create: {
+      nombre: 'Ricardo Hernandez',
+      email: 'ricardo@cun.mx',
+      passwordHash: passwordHashOp,
+      rolId: operadorRole!.id,
+      turno: 'Matutino',
+      dispositivo: 'iPad',
+      activo: true
+    },
+  });
+
+  const florUser = await prisma.usuario.upsert({
+    where: { email: 'flor@cun.mx' },
+    update: { activo: true, dispositivo: 'Pixel 10' },
+    create: {
+      nombre: 'Flor Toledo',
+      email: 'flor@cun.mx',
+      passwordHash: passwordHashOp,
+      rolId: supervisorRole!.id,
+      turno: 'Vespertino',
+      dispositivo: 'Pixel 10',
+      activo: true
+    },
+  });
+
+  const sheldonUser = await prisma.usuario.upsert({
+    where: { email: 'sheldon@cun.mx' },
+    update: { activo: true, dispositivo: 'iPad' },
+    create: {
+      nombre: 'Sheldon Craig',
+      email: 'sheldon@cun.mx',
+      passwordHash: passwordHashOp,
+      rolId: operadorRole!.id,
+      turno: 'Nocturno',
+      dispositivo: 'iPad',
+      activo: true
+    },
+  });
+
+  console.log('Usuarios e Ingenieros de campo listos.');
 
   // 3. Crear Tipos de Papel
   const tipoPapel1 = await prisma.tipoPapel.upsert({
     where: { codigo: 'BTP-01' },
-    update: {},
+    update: { unidadMedida: 'Rollo' },
     create: {
       codigo: 'BTP-01',
       descripcion: 'Rollos Etiquet Equipaje ( BTP-01)',
@@ -108,7 +112,7 @@ async function main() {
 
   const tipoPapel2 = await prisma.tipoPapel.upsert({
     where: { codigo: 'ATB-01' },
-    update: {},
+    update: { unidadMedida: 'Rollo' },
     create: {
       codigo: 'ATB-01',
       descripcion: 'Rollos Pases de Abordar (ATB-01)',
@@ -123,7 +127,6 @@ async function main() {
       puntoReorden: 50,
     },
   });
-  console.log('Catálogo de papel listo.');
 
   // 4. Crear Almacenes
   const almacenCentral = await prisma.almacen.upsert({
@@ -131,6 +134,7 @@ async function main() {
     update: {
       nombre: 'Almacén Central Terminal 2',
       ubicacion: 'Terminal 2',
+      capacidad: 'Grande',
       proveedor: 'SITA',
     },
     create: {
@@ -147,6 +151,7 @@ async function main() {
     update: {
       nombre: 'Almacén Local Terminal 4',
       ubicacion: 'Terminal 4',
+      capacidad: 'Mediana',
       proveedor: 'SITA',
     },
     create: {
@@ -163,6 +168,7 @@ async function main() {
     update: {
       nombre: 'Almacén Local Terminal 3',
       ubicacion: 'Terminal 3',
+      capacidad: 'Mediana',
       proveedor: 'SITA',
     },
     create: {
@@ -173,28 +179,44 @@ async function main() {
       proveedor: 'SITA',
     },
   });
-  console.log('Almacenes listos.');
 
-  // 5. Crear Áreas y Periféricos
-  const areaT2 = await prisma.areaAeropuerto.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000003' },
-    update: {
-      nombre: 'Kioskos Terminal 2',
-      terminal: 'Terminal 2',
-      zona: 'Público',
-    },
-    create: {
-      id: '00000000-0000-0000-0000-000000000003',
-      nombre: 'Kioskos Terminal 2',
-      terminal: 'Terminal 2',
-      zona: 'Público',
-    },
+  // 5. Stock de Almacenes Sincronizado
+  await prisma.stockAlmacen.deleteMany();
+  await prisma.stockAlmacen.createMany({
+    data: [
+      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel2.id, cantidadActual: 238 }, // ATB 238
+      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel1.id, cantidadActual: 495 }, // BTP 495
+      { almacenId: almacenT4.id, tipoPapelId: tipoPapel2.id, cantidadActual: 75 },      // ATB 75
+      { almacenId: almacenT4.id, tipoPapelId: tipoPapel1.id, cantidadActual: 491 },     // BTP 491
+      { almacenId: almacenT3.id, tipoPapelId: tipoPapel2.id, cantidadActual: 81 },      // ATB 81
+      { almacenId: almacenT3.id, tipoPapelId: tipoPapel1.id, cantidadActual: 180 },     // BTP 180
+    ]
   });
 
-  // Generar 48 kioskos para Terminal 2 (CUN2AKA001 a CUN2AKA048)
+  // 6. Áreas y Periféricos
+  const areaT2 = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: { nombre: 'Kioskos Terminal 2', terminal: 'Terminal 2' },
+    create: { id: '00000000-0000-0000-0000-000000000003', nombre: 'Kioskos Terminal 2', terminal: 'Terminal 2', zona: 'Público' },
+  });
+
+  const areaT3 = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000004' },
+    update: { nombre: 'Kioskos Terminal 3', terminal: 'Terminal 3' },
+    create: { id: '00000000-0000-0000-0000-000000000004', nombre: 'Kioskos Terminal 3', terminal: 'Terminal 3', zona: 'Público' },
+  });
+
+  const areaT4 = await prisma.areaAeropuerto.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000005' },
+    update: { nombre: 'Kioskos Terminal 4', terminal: 'Terminal 4' },
+    create: { id: '00000000-0000-0000-0000-000000000005', nombre: 'Kioskos Terminal 4', terminal: 'Terminal 4', zona: 'Público' },
+  });
+
+  // Generar kioskos T2 (48 Kioskos)
   const perifsT2 = [];
   for (let i = 1; i <= 48; i++) {
     const num = i.toString().padStart(3, '0');
+    const isCriticalBtp = i === 2 || i === 9; // Kioskos CUN2AKA002 y CUN2AKA009 en rojo BTP
     perifsT2.push({
       identificadorUnico: `CUN2AKA${num}`,
       marca: 'SITA',
@@ -202,56 +224,29 @@ async function main() {
       areaId: areaT2.id,
       estadoOperativo: 'ACTIVO',
       nivelAtb: 100,
-      nivelBtp: 100,
+      nivelBtp: isCriticalBtp ? 15 : 100,
     });
   }
-  await prisma.periferico.createMany({
-    data: perifsT2,
-    skipDuplicates: true,
-  });
+  await prisma.periferico.createMany({ data: perifsT2, skipDuplicates: true });
 
-  const areaT3 = await prisma.areaAeropuerto.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000004' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000004',
-      nombre: 'Kioskos Terminal 3',
-      terminal: 'Terminal 3',
-      zona: 'Público',
-    },
-  });
-
-  const areaT4 = await prisma.areaAeropuerto.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000005' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000005',
-      nombre: 'Kioskos Terminal 4',
-      terminal: 'Terminal 4',
-      zona: 'Público',
-    },
-  });
-
-  // Generar 60 kioskos para Terminal 3 (CUN3AKA001 a CUN3AKA060)
+  // Generar kioskos T3 (60 Kioskos)
   const perifsT3 = [];
   for (let i = 1; i <= 60; i++) {
     const num = i.toString().padStart(3, '0');
+    const isCriticalAtb = [4, 5, 6, 8, 9, 10].includes(i); // Kioskos CUN3AKA004, 005, 006, 008, 009, 010 en rojo ATB
     perifsT3.push({
       identificadorUnico: `CUN3AKA${num}`,
       marca: 'SITA',
       modelo: 'Kiosk V2',
       areaId: areaT3.id,
       estadoOperativo: 'ACTIVO',
-      nivelAtb: 100,
+      nivelAtb: isCriticalAtb ? 15 : 100,
       nivelBtp: 100,
     });
   }
-  await prisma.periferico.createMany({
-    data: perifsT3,
-    skipDuplicates: true,
-  });
+  await prisma.periferico.createMany({ data: perifsT3, skipDuplicates: true });
 
-  // Generar 74 kioskos para Terminal 4 (CUN4AKA001 a CUN4AKA074)
+  // Generar kioskos T4 (74 Kioskos)
   const perifsT4 = [];
   for (let i = 1; i <= 74; i++) {
     const num = i.toString().padStart(3, '0');
@@ -265,124 +260,63 @@ async function main() {
       nivelBtp: 100,
     });
   }
-  await prisma.periferico.createMany({
-    data: perifsT4,
-    skipDuplicates: true,
-  });
-  console.log('Áreas y Periféricos listos.');
+  await prisma.periferico.createMany({ data: perifsT4, skipDuplicates: true });
 
-  // 6. Crear Lotes y Stock
-  const lote1 = await prisma.lote.upsert({
-    where: { tipoPapelId_numeroLote: { tipoPapelId: tipoPapel1.id, numeroLote: 'LOTE-2026-001' } },
-    update: {},
-    create: {
-      tipoPapelId: tipoPapel1.id,
-      numeroLote: 'LOTE-2026-001',
-      fechaRecepcion: new Date(),
-    },
-  });
-
-  await prisma.stockAlmacen.deleteMany();
-
-  await prisma.stockAlmacen.create({
-    data: {
-      almacenId: almacenCentral.id,
-      tipoPapelId: tipoPapel1.id,
-      cantidadActual: 350,
-      loteId: lote1.id
-    },
+  // 7. Crear Alertas Activas Identificables
+  await prisma.alertaStock.deleteMany();
+  await prisma.alertaStock.createMany({
+    data: [
+      { tipoPapelId: tipoPapel1.id, mensaje: 'Kiosko CUN2AKA002 en Kioskos Terminal 2 tiene nivel crítico de BTP (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel1.id, mensaje: 'Kiosko CUN2AKA009 en Kioskos Terminal 2 tiene nivel crítico de BTP (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA004 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA005 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA006 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA008 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA009 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA010 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
+    ]
   });
 
-  await prisma.stockAlmacen.create({
-    data: {
-      almacenId: almacenCentral.id,
-      tipoPapelId: tipoPapel2.id,
-      cantidadActual: 120,
-      loteId: lote1.id
-    },
-  });
-
-  await prisma.stockAlmacen.create({
-    data: {
-      almacenId: almacenT3.id,
-      tipoPapelId: tipoPapel1.id,
-      cantidadActual: 45,
-      loteId: lote1.id
-    },
-  });
-  console.log('Stock y Lotes listos.');
-
-  // 7. Crear Movimientos y Auditoría si tenemos usuario
-  if (adminUser) {
-    // Generamos datos históricos si hay menos de 50 (para asegurar que siempre haya suficientes)
-    const movsCount = await prisma.movimientoInventario.count();
-    if (movsCount < 50) {
-      const historialMovimientos = [];
-      const hoy = new Date();
-      
-      for (let i = 0; i < 100; i++) {
-        // Generar fecha aleatoria en los últimos 90 días
-        const diasAtras = Math.floor(Math.random() * 90);
-        const fechaAleatoria = new Date(hoy);
-        fechaAleatoria.setDate(fechaAleatoria.getDate() - diasAtras);
-        
-        // Randomizar tipo de papel (BTP o ATB)
-        const isBTP = Math.random() > 0.5;
-        const papelId = isBTP ? tipoPapel1.id : tipoPapel2.id;
-        
-        // Randomizar tipo de movimiento
-        const tipos = ['ENTRADA', 'SALIDA', 'TRANSFERENCIA'];
-        const tipoAleatorio = tipos[Math.floor(Math.random() * tipos.length)];
-        
-        let origenId = null;
-        let destinoId = null;
-        let cantidad = 0;
-        let comentario = '';
-        
-        if (tipoAleatorio === 'ENTRADA') {
-          destinoId = almacenCentral.id;
-          cantidad = Math.floor(Math.random() * 500) + 100;
-          comentario = 'Reabastecimiento de proveedor (Simulado)';
-        } else if (tipoAleatorio === 'SALIDA') {
-          origenId = Math.random() > 0.5 ? almacenCentral.id : almacenT3.id;
-          cantidad = Math.floor(Math.random() * 50) + 10;
-          comentario = 'Uso operativo en mostradores/kioskos (Simulado)';
-        } else { // TRANSFERENCIA
-          origenId = almacenCentral.id;
-          destinoId = Math.random() > 0.5 ? almacenT3.id : almacenT4.id;
-          cantidad = Math.floor(Math.random() * 100) + 20;
-          comentario = 'Transferencia hacia terminal (Simulado)';
-        }
-
-        historialMovimientos.push({
-          tipoPapelId: papelId,
-          loteId: lote1.id,
-          almacenOrigenId: origenId,
-          almacenDestinoId: destinoId,
-          tipoMovimiento: tipoAleatorio as string,
-          cantidad: cantidad,
-          usuarioId: adminUser.id,
-          fechaMovimiento: fechaAleatoria,
-          comentarios: comentario,
-        });
+  // 8. Crear Incidentes & Tickets
+  await prisma.incidenteDiscrepancia.deleteMany();
+  await prisma.incidenteDiscrepancia.createMany({
+    data: [
+      {
+        terminal: 'Almacén Local Terminal 3',
+        ingenieroId: adminUser.id,
+        stockCalculado: 192,
+        stockFisico: 180,
+        diferencia: -12,
+        estado: 'INVESTIGACION',
+        comentarios: 'Discrepancia reportada al recuento físico. Faltan 12 rollos por posible daño en rodillo.\n[12/08/2026 12:47 - Administrador CUN (INVESTIGACION)]: Se inicia investigación en sitio con supervisor de turno.'
+      },
+      {
+        terminal: 'Almacén Central',
+        ingenieroId: adminUser.id,
+        stockCalculado: 120,
+        stockFisico: 90,
+        diferencia: -30,
+        estado: 'ABIERTO',
+        comentarios: 'Descuadre en inventario lógico vs físico al recepcionar lote.'
       }
+    ]
+  });
 
-      await prisma.movimientoInventario.createMany({
-        data: historialMovimientos,
-      });
+  // 9. Historial de Auditoría
+  await prisma.auditoriaAcciones.deleteMany();
+  await prisma.auditoriaAcciones.createMany({
+    data: [
+      { usuarioId: adminUser.id, accion: 'LOGIN', entidad: 'Usuario', detalles: 'Inicio de sesión exitoso' },
+      { usuarioId: adminUser.id, accion: 'CAMBIO_ESTADO_INCIDENTE', entidad: 'IncidenteDiscrepancia', detalles: 'Estado cambiado a INVESTIGACION. Nota: Se inicia investigación en sitio con supervisor de turno.' },
+      { usuarioId: adminUser.id, accion: 'REPORTE_DISCREPANCIA_ALMACEN', entidad: 'Almacen', detalles: 'Discrepancia en Almacén Local Terminal 3: Sistema 192 vs Físico 180 (BTP-01)' },
+      { usuarioId: ricardoUser.id, accion: 'REGISTRO_INTERVENCION', entidad: 'Periferico', detalles: 'Cambio de Papel BTP en Kiosko CUN3AKA051 (Ingeniero: Ricardo Hernandez)' },
+      { usuarioId: ricardoUser.id, accion: 'REGISTRO_INTERVENCION', entidad: 'Periferico', detalles: 'Cambio de Papel ATB en Kiosko CUN3AKA051 (Ingeniero: Ricardo Hernandez)' },
+      { usuarioId: florUser.id, accion: 'LOGIN', entidad: 'Usuario', detalles: 'Inicio de sesión exitoso' },
+      { usuarioId: ricardoUser.id, accion: 'LOGOUT', entidad: 'Usuario', detalles: 'Cierre de sesión exitoso' },
+    ]
+  });
 
-      await prisma.auditoriaAcciones.createMany({
-        data: [
-          { usuarioId: adminUser.id, accion: 'LOGIN', entidad: 'Auth', detalles: 'Inicio de sesión exitoso' },
-          { usuarioId: adminUser.id, accion: 'CREATE', entidad: 'Movimiento', detalles: 'Ingresó 500 unidades' },
-          { usuarioId: adminUser.id, accion: 'UPDATE', entidad: 'Periferico', detalles: 'Cambió estado a Mantenimiento' },
-        ],
-      });
-      console.log('Movimientos y Auditoria de prueba listos.');
-    }
-  }
-
-  console.log('¡Proceso de Seed completado con éxito!');
+  console.log('¡Proceso de Seed ampliado completado con éxito!');
 }
 
 main()
