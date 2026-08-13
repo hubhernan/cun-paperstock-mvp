@@ -12,3 +12,4 @@ echo ">>> Construyendo el Backend..."
 cd ../backend
 npm install
 npx prisma generate
+npm run seed
