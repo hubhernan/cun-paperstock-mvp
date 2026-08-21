@@ -1,6 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, MapPin, X, Package, Check, AlertCircle, Edit3, CheckCircle2 } from 'lucide-react';
+import { 
+  Plus, 
+  MapPin, 
+  X, 
+  Package, 
+  Check, 
+  AlertCircle, 
+  Edit3, 
+  CheckCircle2,
+  ArrowRightLeft, 
+  ArrowDownToLine, 
+  ArrowUpFromLine, 
+  AlertTriangle,
+  History
+} from 'lucide-react';
+import { format } from 'date-fns';
 
 interface Almacen {
   id: string;
@@ -15,6 +30,18 @@ interface Almacen {
   sugerencia?: string;
 }
 
+interface Movimiento {
+  id: string;
+  tipoMovimiento: string;
+  cantidad: number;
+  fechaMovimiento: string;
+  comentarios: string;
+  tipoPapel: { codigo: string; descripcion: string };
+  almacenOrigen: { nombre: string; proveedor?: string } | null;
+  almacenDestino: { nombre: string; proveedor?: string } | null;
+  usuario: { nombre: string };
+}
+
 const Almacenes: React.FC = () => {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +49,11 @@ const Almacenes: React.FC = () => {
   const [stockDetalle, setStockDetalle] = useState<any[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Movimientos Informativos (Réplica en Almacenes)
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [loadingMovimientos, setLoadingMovimientos] = useState(true);
+  const [filtroTipoMovimiento, setFiltroTipoMovimiento] = useState<string>('ALL');
 
   // Estados para verificación de stock y discrepancias
   const [verificandoId, setVerificandoId] = useState<string | null>(null);
@@ -44,8 +76,23 @@ const Almacenes: React.FC = () => {
     }
   };
 
+  const fetchMovimientos = async () => {
+    try {
+      setLoadingMovimientos(true);
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/movimientos');
+      if (response.data.success) {
+        setMovimientos(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching movimientos en Almacenes', error);
+    } finally {
+      setLoadingMovimientos(false);
+    }
+  };
+
   useEffect(() => {
     fetchAlmacenes();
+    fetchMovimientos();
   }, []);
 
   const handleVerStock = async (almacen: Almacen) => {
@@ -83,6 +130,7 @@ const Almacenes: React.FC = () => {
       if (response.data.success) {
         setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'OK' }));
         setFeedbackMsg({ tipo: 'success', texto: response.data.message });
+        fetchMovimientos();
       }
     } catch (err: any) {
       setFeedbackMsg({ tipo: 'error', texto: err.response?.data?.message || 'Error al confirmar stock' });
@@ -119,6 +167,7 @@ const Almacenes: React.FC = () => {
         setEditandoStockId(null);
         handleVerStock(selectedAlmacen);
         fetchAlmacenes();
+        fetchMovimientos();
       }
     } catch (err: any) {
       setFeedbackMsg({ tipo: 'error', texto: err.response?.data?.message || 'Error al registrar discrepancia' });
@@ -127,8 +176,49 @@ const Almacenes: React.FC = () => {
     }
   };
 
+  // Helper functions para el formateo de movimientos
+  const getMovIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'ENTRADA': return <ArrowDownToLine size={18} color="var(--color-success)" />;
+      case 'SALIDA': return <ArrowUpFromLine size={18} color="var(--color-warning)" />;
+      case 'MERMA': return <AlertTriangle size={18} color="var(--color-danger)" />;
+      case 'TRANSFERENCIA': return <ArrowRightLeft size={18} color="var(--color-primary-light)" />;
+      default: return null;
+    }
+  };
+
+  const formatOrigen = (mov: Movimiento) => {
+    if (mov.tipoMovimiento === 'ENTRADA') return '-';
+    if (!mov.almacenOrigen) return '-';
+    return mov.almacenOrigen.nombre;
+  };
+
+  const formatDestino = (mov: Movimiento) => {
+    if (mov.tipoMovimiento === 'MERMA') return '-';
+    if (mov.tipoMovimiento === 'SALIDA') {
+      if (mov.almacenDestino?.nombre) return mov.almacenDestino.nombre;
+      if (mov.comentarios) {
+        const match = mov.comentarios.match(/CUN\d[A-Z0-9]{5,}/i) || mov.comentarios.match(/Kiosko\s+([A-Z0-9_-]+)/i);
+        if (match) {
+          return match[0].startsWith('Kiosko') ? match[0] : `Kiosko ${match[0]}`;
+        }
+        if (mov.comentarios !== 'Registro manual') return mov.comentarios;
+      }
+      return 'Kiosko en Sitio';
+    }
+    return mov.almacenDestino?.nombre || '-';
+  };
+
+  const ultimos15Movimientos = useMemo(() => {
+    const filtrados = movimientos.filter(mov => {
+      if (filtroTipoMovimiento === 'ALL') return true;
+      return mov.tipoMovimiento === filtroTipoMovimiento;
+    });
+    return filtrados.slice(0, 15);
+  }, [movimientos, filtroTipoMovimiento]);
+
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2>Gestión de Almacenes</h2>
         <button className="btn btn-primary">
@@ -137,9 +227,10 @@ const Almacenes: React.FC = () => {
         </button>
       </div>
 
+      {/* Grid de Tarjetas de Almacenes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
         {loading ? (
-          <div>Cargando...</div>
+          <div>Cargando almacenes...</div>
         ) : almacenes.length === 0 ? (
           <div className="card w-full">No hay almacenes registrados.</div>
         ) : (
@@ -203,6 +294,97 @@ const Almacenes: React.FC = () => {
               </div>
             </div>
           ))
+        )}
+      </div>
+
+      {/* SECCIÓN INFERIOR: Réplica Informativa de los Últimos 15 Movimientos de Inventario */}
+      <div className="card table-container" style={{ marginTop: '2.5rem', padding: 0 }}>
+        <div style={{ 
+          padding: '1rem 1.25rem', 
+          borderBottom: '1px solid var(--color-border)', 
+          display: 'flex', 
+          justify: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '1rem',
+          background: '#f8fafc'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <History size={20} color="var(--color-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#1e293b' }}>
+              Últimos 15 Movimientos de Inventario (Monitoreo en Tiempo Real)
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <select 
+              className="input-field" 
+              style={{ margin: 0, padding: '0.4rem 2rem 0.4rem 0.75rem', background: 'white', fontSize: '0.875rem' }} 
+              value={filtroTipoMovimiento} 
+              onChange={(e) => setFiltroTipoMovimiento(e.target.value)}
+            >
+              <option value="ALL">Todos los Movimientos</option>
+              <option value="ENTRADA">Entrada</option>
+              <option value="SALIDA">Salida</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="MERMA">Merma</option>
+            </select>
+          </div>
+        </div>
+
+        {loadingMovimientos ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            Cargando últimos movimientos...
+          </div>
+        ) : ultimos15Movimientos.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            No hay movimientos registrados para el filtro seleccionado.
+          </div>
+        ) : (
+          <table className="data-table w-full">
+            <thead>
+              <tr>
+                <th>TIPO</th>
+                <th>PAPEL</th>
+                <th>PROVEEDOR</th>
+                <th>ORIGEN</th>
+                <th>DESTINO</th>
+                <th>CANTIDAD</th>
+                <th>FECHA Y HORA</th>
+                <th>USUARIO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ultimos15Movimientos.map((mov) => {
+                const provOrigen = mov.almacenOrigen?.proveedor;
+                const provDestino = mov.almacenDestino?.proveedor;
+                const provRelevante = mov.tipoMovimiento === 'ENTRADA' ? provDestino : provOrigen;
+                return (
+                  <tr key={mov.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+                        {getMovIcon(mov.tipoMovimiento)}
+                        {mov.tipoMovimiento}
+                      </div>
+                    </td>
+                    <td>{mov.tipoPapel.codigo}</td>
+                    <td>
+                      {provRelevante ? (
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${provRelevante === 'SITA' ? 'bg-blue-900/50 text-blue-400 border border-blue-700/50' : (provRelevante === 'ASUR' ? 'bg-green-900/50 text-green-400 border border-green-700/50' : 'bg-gray-800/50 text-gray-300 border border-gray-600/50')}`}>
+                          {provRelevante}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{formatOrigen(mov)}</td>
+                    <td style={{ fontWeight: 500 }}>{formatDestino(mov)}</td>
+                    <td style={{ fontWeight: 600 }}>{mov.cantidad}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{format(new Date(mov.fechaMovimiento), 'dd/MM/yyyy HH:mm')}</td>
+                    <td>{mov.usuario.nombre}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
