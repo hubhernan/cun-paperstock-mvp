@@ -316,6 +316,140 @@ async function main() {
     ]
   });
 
+  // 10. Generar Historial Completo (Últimos 60 Días) para Reportes y Movimientos
+  console.log('🌱 Generando datos históricos de inventario e intervenciones (60 días)...');
+
+  await prisma.movimientoInventario.deleteMany();
+  await prisma.intervencionKiosko.deleteMany();
+  await prisma.asignacionPeriferico.deleteMany();
+
+  const usuarios = [ricardoUser, florUser, adminUser];
+  const todosKioskos = await prisma.periferico.findMany();
+
+  const hoy = new Date();
+  const diasAtras = [60, 45, 30, 25, 20, 15, 12, 10, 7, 5, 3, 2, 1];
+
+  // Entradas de Inventario (Recepciones de Lotes)
+  for (const offset of [60, 45, 30, 15, 5]) {
+    const fecha = new Date(hoy.getTime() - offset * 24 * 60 * 60 * 1000);
+    fecha.setHours(9, 30, 0, 0);
+
+    await prisma.movimientoInventario.create({
+      data: {
+        tipoPapelId: tipoPapel2.id,
+        almacenDestinoId: almacenCentral.id,
+        tipoMovimiento: 'ENTRADA',
+        cantidad: 300,
+        usuarioId: adminUser.id,
+        fechaMovimiento: fecha,
+        comentarios: `Recepción de Lote ATB de Proveedor SITA (Hace ${offset} días)`
+      }
+    });
+
+    await prisma.movimientoInventario.create({
+      data: {
+        tipoPapelId: tipoPapel1.id,
+        almacenDestinoId: almacenCentral.id,
+        tipoMovimiento: 'ENTRADA',
+        cantidad: 500,
+        usuarioId: adminUser.id,
+        fechaMovimiento: fecha,
+        comentarios: `Recepción de Lote BTP de Proveedor SITA (Hace ${offset} días)`
+      }
+    });
+  }
+
+  // Transferencias a Almacenes Locales T3 y T4
+  for (const offset of [55, 40, 25, 12, 4]) {
+    const fecha = new Date(hoy.getTime() - offset * 24 * 60 * 60 * 1000);
+    fecha.setHours(11, 15, 0, 0);
+
+    await prisma.movimientoInventario.create({
+      data: {
+        tipoPapelId: tipoPapel2.id,
+        almacenOrigenId: almacenCentral.id,
+        almacenDestinoId: almacenT3.id,
+        tipoMovimiento: 'TRANSFERENCIA',
+        cantidad: 80,
+        usuarioId: adminUser.id,
+        fechaMovimiento: fecha,
+        comentarios: `Traspaso programado Almacén Central -> Almacén T3`
+      }
+    });
+
+    await prisma.movimientoInventario.create({
+      data: {
+        tipoPapelId: tipoPapel1.id,
+        almacenOrigenId: almacenCentral.id,
+        almacenDestinoId: almacenT4.id,
+        tipoMovimiento: 'TRANSFERENCIA',
+        cantidad: 150,
+        usuarioId: adminUser.id,
+        fechaMovimiento: fecha,
+        comentarios: `Traspaso programado Almacén Central -> Almacén T4`
+      }
+    });
+  }
+
+  // Intervenciones en Kioskos, Salidas de Stock y Asignaciones
+  let countIntervenciones = 0;
+  for (const offset of diasAtras) {
+    const fechaBase = new Date(hoy.getTime() - offset * 24 * 60 * 60 * 1000);
+    const numIntervenciones = 6 + (offset % 8);
+
+    for (let k = 0; k < numIntervenciones; k++) {
+      const idxKiosko = (offset * 7 + k * 13) % todosKioskos.length;
+      const kiosko = todosKioskos[idxKiosko];
+      const ingeniero = usuarios[k % usuarios.length];
+      const esATB = k % 2 === 0;
+      const tipoPapelObj = esATB ? tipoPapel2 : tipoPapel1;
+      const accionNombre = esATB ? 'Cambio de Papel ATB' : 'Cambio de Papel BTP';
+
+      let almacenOrigen = almacenCentral;
+      if (kiosko.identificadorUnico.startsWith('CUN3')) almacenOrigen = almacenT3;
+      if (kiosko.identificadorUnico.startsWith('CUN4')) almacenOrigen = almacenT4;
+
+      const fechaIntervencion = new Date(fechaBase.getTime() + (8 + k) * 45 * 60 * 1000);
+
+      await prisma.intervencionKiosko.create({
+        data: {
+          perifericoId: kiosko.id,
+          ingenieroId: ingeniero.id,
+          accion: accionNombre,
+          almacenOrigenId: almacenOrigen.id,
+          comentarios: `Mantenimiento preventivo en turno (${accionNombre})`,
+          fecha: fechaIntervencion
+        }
+      });
+
+      await prisma.movimientoInventario.create({
+        data: {
+          tipoPapelId: tipoPapelObj.id,
+          almacenOrigenId: almacenOrigen.id,
+          tipoMovimiento: 'SALIDA',
+          cantidad: 1,
+          usuarioId: ingeniero.id,
+          fechaMovimiento: fechaIntervencion,
+          comentarios: `Cambio manual en Kiosko ${kiosko.identificadorUnico}`
+        }
+      });
+
+      await prisma.asignacionPeriferico.create({
+        data: {
+          perifericoId: kiosko.id,
+          tipoPapelId: tipoPapelObj.id,
+          cantidadAsignada: 1,
+          usuarioId: ingeniero.id,
+          fechaAsignacion: fechaIntervencion
+        }
+      });
+
+      countIntervenciones++;
+    }
+  }
+
+  console.log(`✅ Se generaron ${countIntervenciones} intervenciones y movimientos históricos exitosamente.`);
+
   console.log('¡Proceso de Seed ampliado completado con éxito!');
 }
 

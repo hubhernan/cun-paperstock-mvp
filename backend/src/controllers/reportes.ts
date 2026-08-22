@@ -4,29 +4,25 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const parseFechaInicio = (str: any): Date | undefined => {
-  if (!str) return undefined;
+  if (!str || str === '' || str === 'undefined' || str === 'null') return undefined;
   if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const parts = str.split('-').map(Number);
-    const y = parts[0] ?? 2026;
-    const m = parts[1] ?? 1;
-    const d = parts[2] ?? 1;
-    return new Date(y, m - 1, d, 0, 0, 0, 0);
+    return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
   }
-  return new Date(str);
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? undefined : d;
 };
 
 const parseFechaFin = (str: any): Date | undefined => {
-  if (!str) return undefined;
+  if (!str || str === '' || str === 'undefined' || str === 'null') return undefined;
   if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const parts = str.split('-').map(Number);
-    const y = parts[0] ?? 2026;
-    const m = parts[1] ?? 1;
-    const d = parts[2] ?? 1;
-    return new Date(y, m - 1, d, 23, 59, 59, 999);
+    return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
   }
-  const date = new Date(str);
-  date.setHours(23, 59, 59, 999);
-  return date;
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return undefined;
+  d.setHours(23, 59, 59, 999);
+  return d;
 };
 
 const aplicarFiltroFechas = (whereObj: any, campoFecha: string, fechaInicio: any, fechaFin: any) => {
