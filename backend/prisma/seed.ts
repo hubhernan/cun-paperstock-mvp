@@ -306,12 +306,13 @@ async function main() {
     ]
   });
 
-  // 10. Generar Historial Completo (Últimos 60 Días) para Reportes y Movimientos
-  console.log('🌱 Generando datos históricos de inventario e intervenciones (60 días)...');
+  // 10. Generar Historial Completo (Últimos 60 Días) para Movimientos, Intervenciones y Bitácora de Auditoría
+  console.log('🌱 Generando datos históricos de inventario, intervenciones y auditoría (60 días)...');
 
   await prisma.movimientoInventario.deleteMany();
   await prisma.intervencionKiosko.deleteMany();
   await prisma.asignacionPeriferico.deleteMany();
+  await prisma.auditoriaAcciones.deleteMany();
 
   const usuarios = [ricardoUser, florUser, adminUser];
   const todosKioskos = await prisma.periferico.findMany();
@@ -347,6 +348,16 @@ async function main() {
         comentarios: `Recepción de Lote BTP de Proveedor SITA (Hace ${offset} días)`
       }
     });
+
+    await prisma.auditoriaAcciones.create({
+      data: {
+        usuarioId: adminUser.id,
+        accion: 'REGISTRO_MOVIMIENTO',
+        entidad: 'Inventario',
+        detalles: `Recepción de Lote ATB y BTP en Almacén Central (Hace ${offset} días)`,
+        fecha: fecha
+      }
+    });
   }
 
   // Transferencias a Almacenes Locales T3 y T4
@@ -379,12 +390,36 @@ async function main() {
         comentarios: `Traspaso programado Almacén Central -> Almacén T4`
       }
     });
+
+    await prisma.auditoriaAcciones.create({
+      data: {
+        usuarioId: adminUser.id,
+        accion: 'REGISTRO_MOVIMIENTO',
+        entidad: 'Inventario',
+        detalles: `Traspaso de cajas Almacén Central -> Almacenes T3 y T4`,
+        fecha: fecha
+      }
+    });
   }
 
-  // Intervenciones en Kioskos, Salidas de Stock y Asignaciones
+  // Intervenciones en Kioskos, Salidas de Stock, Asignaciones y Bitácora de Auditoría
   let countIntervenciones = 0;
   for (const offset of diasAtras) {
     const fechaBase = new Date(hoy.getTime() - offset * 24 * 60 * 60 * 1000);
+    const uLogin = usuarios[offset % usuarios.length];
+
+    // Login histórico
+    const fechaLogin = new Date(fechaBase.getTime() + 7 * 60 * 60 * 1000);
+    await prisma.auditoriaAcciones.create({
+      data: {
+        usuarioId: uLogin.id,
+        accion: 'LOGIN',
+        entidad: 'Usuario',
+        detalles: `Inicio de sesión exitoso en terminal (${uLogin.nombre})`,
+        fecha: fechaLogin
+      }
+    });
+
     const numIntervenciones = 6 + (offset % 8);
 
     for (let k = 0; k < numIntervenciones; k++) {
@@ -434,11 +469,34 @@ async function main() {
         }
       });
 
+      // Crear entrada de Auditoría
+      await prisma.auditoriaAcciones.create({
+        data: {
+          usuarioId: ingeniero.id,
+          accion: 'REGISTRO_INTERVENCION',
+          entidad: 'Periferico',
+          detalles: `${accionNombre} en Kiosko ${kiosko.identificadorUnico} (${ingeniero.nombre})`,
+          fecha: fechaIntervencion
+        }
+      });
+
       countIntervenciones++;
     }
+
+    // Logout histórico
+    const fechaLogout = new Date(fechaBase.getTime() + 18 * 60 * 60 * 1000);
+    await prisma.auditoriaAcciones.create({
+      data: {
+        usuarioId: uLogin.id,
+        accion: 'LOGOUT',
+        entidad: 'Usuario',
+        detalles: `Cierre de sesión de turno (${uLogin.nombre})`,
+        fecha: fechaLogout
+      }
+    });
   }
 
-  console.log(`✅ Se generaron ${countIntervenciones} intervenciones y movimientos históricos exitosamente.`);
+  console.log(`✅ Se generaron ${countIntervenciones} intervenciones, movimientos y registros de auditoría históricos exitosamente.`);
 
   console.log('¡Proceso de Seed ampliado completado con éxito!');
 }
