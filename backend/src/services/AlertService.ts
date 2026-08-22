@@ -11,12 +11,96 @@ export const clearKioskoAlertState = (kioskoId: string) => {
   delete lastAlertState[kioskoId];
 };
 
+export const sincronizarAlertasConPerifericos = async (dbClient: any = prisma) => {
+  try {
+    const kioskos = await dbClient.periferico.findMany({
+      where: { estadoOperativo: 'ACTIVO' },
+      include: {
+        asignaciones: {
+          include: { tipoPapel: true },
+          orderBy: { fechaAsignacion: 'desc' },
+          take: 1
+        },
+        area: true
+      }
+    });
+
+    const tiposPapel = await dbClient.tipoPapel.findMany();
+    const papelAtb = tiposPapel.find((tp: any) => tp.codigo.toUpperCase().includes('ATB')) || tiposPapel[0];
+    const papelBtp = tiposPapel.find((tp: any) => tp.codigo.toUpperCase().includes('BTP')) || tiposPapel[0];
+
+    for (const kiosko of kioskos) {
+      const atb = kiosko.nivelAtb;
+      const btp = kiosko.nivelBtp;
+      const atbCritico = atb <= 20;
+      const btpCritico = btp <= 20;
+      const idKioskoCodigo = kiosko.identificadorUnico;
+
+      if (!atbCritico && !btpCritico) {
+        await dbClient.alertaStock.updateMany({
+          where: {
+            leida: false,
+            mensaje: { contains: idKioskoCodigo }
+          },
+          data: { leida: true }
+        });
+        continue;
+      }
+
+      let lowType = '';
+      if (atbCritico && btpCritico) {
+        lowType = 'ATB y BTP';
+      } else if (atbCritico) {
+        lowType = 'ATB';
+      } else {
+        lowType = 'BTP';
+      }
+
+      const worstNivel = Math.min(atb, btp);
+      const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
+      const areaNombre = kiosko.area?.nombre || 'Kioskos en Sitio';
+      const nuevoMensaje = `Kiosko ${idKioskoCodigo} en ${areaNombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
+      const targetPapelId = atbCritico ? papelAtb?.id : papelBtp?.id;
+
+      const alertaExistente = await dbClient.alertaStock.findFirst({
+        where: {
+          leida: false,
+          mensaje: { contains: idKioskoCodigo }
+        }
+      });
+
+      if (alertaExistente) {
+        await dbClient.alertaStock.update({
+          where: { id: alertaExistente.id },
+          data: {
+            mensaje: nuevoMensaje,
+            fecha: new Date(),
+            tipoPapelId: targetPapelId || alertaExistente.tipoPapelId
+          }
+        });
+      } else {
+        await dbClient.alertaStock.create({
+          data: {
+            tipoPapelId: targetPapelId || papelAtb?.id,
+            mensaje: nuevoMensaje,
+            leida: false
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error sincronizando alertas con periféricos:', err);
+  }
+};
+
 export const startAlertService = () => {
   if (alertIntervalId) return;
 
   console.log('🚨 Alert Service started (Monitorización de umbrales)');
   
-  // Ejecutar cada 15 segundos
+  // Ejecutar inmediatamente y luego cada 10 segundos
+  sincronizarAlertasConPerifericos().catch(err => console.error(err));
+
   alertIntervalId = setInterval(async () => {
     try {
       // 1. MONITORIZACIÓN DE STOCK GLOBAL (Almacenes)
@@ -46,120 +130,10 @@ export const startAlertService = () => {
         }
       }
 
-      // 2. MONITORIZACIÓN DE KIOSKOS (Telemetría)
-      const kioskos = await prisma.periferico.findMany({
-        where: { estadoOperativo: 'ACTIVO' },
-        include: {
-          asignaciones: {
-            include: { tipoPapel: true },
-            orderBy: { fechaAsignacion: 'desc' },
-            take: 1
-          },
-          area: true
-        }
-      });
-
-      for (const kiosko of kioskos) {
-        const atb = kiosko.nivelAtb;
-        const btp = kiosko.nivelBtp;
-        const atbCritico = atb <= 20;
-        const btpCritico = btp <= 20;
-        let severity = 'OK';
-        
-        const worstNivel = Math.min(atb, btp);
-
-        if (worstNivel <= 5) {
-          severity = 'CRITICA';
-        } else if (worstNivel <= 10) {
-          severity = 'NIVEL_2';
-        } else if (worstNivel <= 20) {
-          severity = 'NIVEL_1';
-        }
-
-        const stateKey = `${kiosko.id}-${severity}-${atbCritico}-${btpCritico}`;
-
-        // Auto-resolver alertas si ambos volvieron a la normalidad
-        if (!atbCritico && !btpCritico) {
-          if (lastAlertState[kiosko.id]) {
-            delete lastAlertState[kiosko.id];
-          }
-          await prisma.alertaStock.updateMany({
-            where: {
-              leida: false,
-              mensaje: { contains: kiosko.identificadorUnico }
-            },
-            data: { leida: true }
-          });
-          continue;
-        }
-
-        // Si hay una alerta y cambió el estado de telemetría para este kiosko
-        if (severity !== 'OK' && lastAlertState[kiosko.id] !== stateKey) {
-          lastAlertState[kiosko.id] = stateKey;
-
-          let lowType = '';
-          if (atbCritico && btpCritico) {
-            lowType = 'ATB y BTP';
-          } else if (atbCritico) {
-            lowType = 'ATB';
-          } else {
-            lowType = 'BTP';
-          }
-
-          const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
-          const mensaje = `Kiosko ${kiosko.identificadorUnico} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
-
-          const tipoPapelAsignado = kiosko.asignaciones[0]?.tipoPapel;
-          let targetPapelId = tipoPapelAsignado?.id;
-          if (!targetPapelId) {
-            const searchCode = atbCritico ? 'ATB' : 'BTP';
-            const firstPapel = await prisma.tipoPapel.findFirst({
-              where: { codigo: { contains: searchCode, mode: 'insensitive' } }
-            }) || await prisma.tipoPapel.findFirst();
-            targetPapelId = firstPapel?.id;
-          }
-
-          if (targetPapelId) {
-            const alertaExistente = await prisma.alertaStock.findFirst({
-              where: {
-                leida: false,
-                mensaje: { contains: kiosko.identificadorUnico }
-              }
-            });
-
-            if (alertaExistente) {
-              await prisma.alertaStock.update({
-                where: { id: alertaExistente.id },
-                data: {
-                  mensaje: mensaje,
-                  fecha: new Date(),
-                  tipoPapelId: targetPapelId
-                }
-              });
-            } else {
-              await prisma.alertaStock.create({
-                data: {
-                  tipoPapelId: targetPapelId,
-                  mensaje: mensaje
-                }
-              });
-            }
-          }
-        } else if (severity === 'OK') {
-          if (lastAlertState[kiosko.id]) {
-             delete lastAlertState[kiosko.id];
-          }
-          await prisma.alertaStock.updateMany({
-            where: {
-              leida: false,
-              mensaje: { contains: kiosko.identificadorUnico }
-            },
-            data: { leida: true }
-          });
-        }
-      }
+        // 2. MONITORIZACIÓN Y SINCRONIZACIÓN DE KIOSKOS
+      await sincronizarAlertasConPerifericos();
     } catch (error) {
       console.error('❌ Error in AlertService:', error);
     }
-  }, 15000);
+  }, 10000);
 };

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { sincronizarAlertasConPerifericos } from '../src/services/AlertService';
 
 const prisma = new PrismaClient();
 
@@ -262,20 +263,9 @@ async function main() {
   }
   await prisma.periferico.createMany({ data: perifsT4, skipDuplicates: true });
 
-  // 7. Crear Alertas Activas Identificables
+  // 7. Sincronizar Alertas con Telemetría de Kioskos
   await prisma.alertaStock.deleteMany();
-  await prisma.alertaStock.createMany({
-    data: [
-      { tipoPapelId: tipoPapel1.id, mensaje: 'Kiosko CUN2AKA002 en Kioskos Terminal 2 tiene nivel crítico de BTP (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel1.id, mensaje: 'Kiosko CUN2AKA009 en Kioskos Terminal 2 tiene nivel crítico de BTP (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA004 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA005 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA006 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA008 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA009 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-      { tipoPapelId: tipoPapel2.id, mensaje: 'Kiosko CUN3AKA010 en Kioskos Terminal 3 tiene nivel crítico de ATB (semáforo en Rojo).', leida: false },
-    ]
-  });
+  await sincronizarAlertasConPerifericos(prisma);
 
   // 8. Crear Incidentes & Tickets
   await prisma.incidenteDiscrepancia.deleteMany();

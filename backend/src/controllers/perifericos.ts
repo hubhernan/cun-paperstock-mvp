@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { sincronizarAlertasConPerifericos } from '../services/AlertService';
 
 const prisma = new PrismaClient();
 
@@ -66,64 +67,7 @@ export const updateNivelPeriferico = async (req: Request, res: Response) => {
       data: dataToUpdate
     });
 
-    const atbCritico = perifericoActualizado.nivelAtb <= 20;
-    const btpCritico = perifericoActualizado.nivelBtp <= 20;
-
-    if (!atbCritico && !btpCritico) {
-      await prisma.alertaStock.updateMany({
-        where: {
-          leida: false,
-          mensaje: { contains: perifericoActualizado.identificadorUnico }
-        },
-        data: { leida: true }
-      });
-    } else {
-      let lowType = '';
-      if (atbCritico && btpCritico) {
-        lowType = 'ATB y BTP';
-      } else if (atbCritico) {
-        lowType = 'ATB';
-      } else {
-        lowType = 'BTP';
-      }
-
-      const alertaExistente = await prisma.alertaStock.findFirst({
-        where: {
-          leida: false,
-          mensaje: { contains: perifericoActualizado.identificadorUnico }
-        }
-      });
-
-      const area = await prisma.areaAeropuerto.findUnique({ where: { id: perifericoActualizado.areaId } });
-      const firstPapel = await prisma.tipoPapel.findFirst({
-        where: { codigo: { contains: atbCritico ? 'ATB' : 'BTP', mode: 'insensitive' } }
-      }) || await prisma.tipoPapel.findFirst();
-
-      if (firstPapel) {
-        const areaNombre = area?.nombre || 'Kioskos en Sitio';
-        const worstNivel = Math.min(perifericoActualizado.nivelAtb, perifericoActualizado.nivelBtp);
-        const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
-        const nuevoMensaje = `Kiosko ${perifericoActualizado.identificadorUnico} en ${areaNombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
-
-        if (alertaExistente) {
-          await prisma.alertaStock.update({
-            where: { id: alertaExistente.id },
-            data: {
-              mensaje: nuevoMensaje,
-              fecha: new Date(),
-              tipoPapelId: firstPapel.id
-            }
-          });
-        } else {
-          await prisma.alertaStock.create({
-            data: {
-              tipoPapelId: firstPapel.id,
-              mensaje: nuevoMensaje
-            }
-          });
-        }
-      }
-    }
+    await sincronizarAlertasConPerifericos(prisma);
 
     await prisma.auditoriaAcciones.create({
       data: {
