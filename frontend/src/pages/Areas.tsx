@@ -83,10 +83,51 @@ const Areas: React.FC = () => {
     return almacenes;
   };
 
+  const getSemaforoInfo = (nivel: number) => {
+    if (nivel < 30) {
+      return {
+        estado: 'ROJO',
+        label: '🔴 ROJO (Atención Requerida)',
+        badgeBg: '#fee2e2',
+        badgeColor: '#991b1b',
+        borderColor: '#ef4444',
+        bgActive: '#fef2f2',
+        textColor: '#b91c1c'
+      };
+    }
+    if (nivel < 60) {
+      return {
+        estado: 'AMBAR',
+        label: '🟡 ÁMBAR (Precaución)',
+        badgeBg: '#fef3c7',
+        badgeColor: '#92400e',
+        borderColor: '#f59e0b',
+        bgActive: '#fffbeb',
+        textColor: '#b45309'
+      };
+    }
+    return {
+      estado: 'VERDE',
+      label: '🟢 VERDE (Óptimo)',
+      badgeBg: '#d1fae5',
+      badgeColor: '#065f46',
+      borderColor: '#10b981',
+      bgActive: '#ecfdf5',
+      textColor: '#047857'
+    };
+  };
+
   const handleOpenModal = (kiosko: Periferico, area: Area) => {
     setSelectedKiosko(kiosko);
     setSelectedAreaOfKiosko(area);
-    setActionType('Cambio de Papel ATB');
+    
+    // Pre-seleccionar el tipo de papel más crítico (menor nivel)
+    if (kiosko.nivelAtb <= kiosko.nivelBtp) {
+      setActionType('Cambio de Papel ATB');
+    } else {
+      setActionType('Cambio de Papel BTP');
+    }
+    
     setComentarios('');
     setModalError('');
 
@@ -161,7 +202,10 @@ const Areas: React.FC = () => {
     if (!selectedKiosko) return;
     setModalError('');
 
-    if (!selectedAlmacen) {
+    const compatibles = getAlmacenesCompatibles(selectedKiosko, selectedAreaOfKiosko);
+    const almacenFinalId = selectedAlmacen || (compatibles.length > 0 ? compatibles[0].id : '');
+
+    if (!almacenFinalId) {
       setModalError('Por favor selecciona el almacén de donde proviene el papel.');
       return;
     }
@@ -173,7 +217,7 @@ const Areas: React.FC = () => {
         perifericoId: selectedKiosko.id,
         accion: actionType,
         comentarios,
-        almacenOrigenId: selectedAlmacen
+        almacenOrigenId: almacenFinalId
       };
 
       const res = await api.post('/intervenciones', payload);
@@ -494,51 +538,93 @@ const Areas: React.FC = () => {
               <div className="form-group">
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Tipo de Acción *</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <button
-                    type="button"
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.4rem',
-                      border: actionType === 'Cambio de Papel ATB' ? '2px solid var(--color-primary)' : '1px solid #cbd5e1',
-                      background: actionType === 'Cambio de Papel ATB' ? '#e0e7ff' : '#f8fafc',
-                      color: actionType === 'Cambio de Papel ATB' ? 'var(--color-primary)' : '#475569',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={() => setActionType('Cambio de Papel ATB')}
-                  >
-                    <RefreshCw size={16} />
-                    Cambio de Papel ATB
-                  </button>
+                  {(() => {
+                    const semAtb = getSemaforoInfo(selectedKiosko.nivelAtb);
+                    const isSelected = actionType === 'Cambio de Papel ATB';
+                    return (
+                      <button
+                        type="button"
+                        style={{
+                          padding: '0.85rem 0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          border: isSelected ? `2px solid ${semAtb.borderColor}` : '1px solid #cbd5e1',
+                          background: isSelected ? semAtb.bgActive : '#f8fafc',
+                          color: isSelected ? semAtb.textColor : '#64748b',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          boxShadow: isSelected ? `0 4px 12px ${semAtb.borderColor}33` : 'none',
+                          transition: 'all 0.2s ease',
+                          transform: isSelected ? 'scale(1.02)' : 'scale(1)'
+                        }}
+                        onClick={() => setActionType('Cambio de Papel ATB')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <RefreshCw size={16} />
+                          <span>Cambio ATB</span>
+                        </div>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '12px',
+                          background: semAtb.badgeBg,
+                          color: semAtb.badgeColor
+                        }}>
+                          {semAtb.label} ({selectedKiosko.nivelAtb}%)
+                        </span>
+                      </button>
+                    );
+                  })()}
 
-                  <button
-                    type="button"
-                    style={{
-                      padding: '0.75rem 0.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.4rem',
-                      border: actionType === 'Cambio de Papel BTP' ? '2px solid #d97706' : '1px solid #cbd5e1',
-                      background: actionType === 'Cambio de Papel BTP' ? '#fef3c7' : '#f8fafc',
-                      color: actionType === 'Cambio de Papel BTP' ? '#b45309' : '#475569',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={() => setActionType('Cambio de Papel BTP')}
-                  >
-                    <RefreshCw size={16} />
-                    Cambio de Papel BTP
-                  </button>
+                  {(() => {
+                    const semBtp = getSemaforoInfo(selectedKiosko.nivelBtp);
+                    const isSelected = actionType === 'Cambio de Papel BTP';
+                    return (
+                      <button
+                        type="button"
+                        style={{
+                          padding: '0.85rem 0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          border: isSelected ? `2px solid ${semBtp.borderColor}` : '1px solid #cbd5e1',
+                          background: isSelected ? semBtp.bgActive : '#f8fafc',
+                          color: isSelected ? semBtp.textColor : '#64748b',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          boxShadow: isSelected ? `0 4px 12px ${semBtp.borderColor}33` : 'none',
+                          transition: 'all 0.2s ease',
+                          transform: isSelected ? 'scale(1.02)' : 'scale(1)'
+                        }}
+                        onClick={() => setActionType('Cambio de Papel BTP')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <RefreshCw size={16} />
+                          <span>Cambio BTP</span>
+                        </div>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '12px',
+                          background: semBtp.badgeBg,
+                          color: semBtp.badgeColor
+                        }}>
+                          {semBtp.label} ({selectedKiosko.nivelBtp}%)
+                        </span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
 

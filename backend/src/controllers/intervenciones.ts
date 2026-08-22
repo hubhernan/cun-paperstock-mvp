@@ -78,7 +78,7 @@ export const createIntervencion = async (req: Request, res: Response) => {
         }
 
         // Buscar stock disponible en el almacén de origen
-        const stocksValidos = await tx.stockAlmacen.findMany({
+        let stockElegido = await tx.stockAlmacen.findFirst({
           where: {
             almacenId: almacenOrigenId,
             tipoPapelId: tipoPapelObj.id,
@@ -86,20 +86,31 @@ export const createIntervencion = async (req: Request, res: Response) => {
           }
         });
 
-        // Si no hay stock disponible, arrojamos un error semántico.
-        if (stocksValidos.length === 0 || !stocksValidos[0]) {
-          throw new Error(`No hay stock disponible del insumo ${tipoPapelObj.codigo} en el almacén seleccionado.`);
+        if (!stockElegido) {
+          stockElegido = await tx.stockAlmacen.findFirst({
+            where: {
+              almacenId: almacenOrigenId,
+              tipoPapelId: tipoPapelObj.id
+            }
+          });
         }
 
-        const stockElegido = stocksValidos[0];
+        if (!stockElegido) {
+          stockElegido = await tx.stockAlmacen.create({
+            data: {
+              almacenId: almacenOrigenId,
+              tipoPapelId: tipoPapelObj.id,
+              cantidadActual: 0
+            }
+          });
+        }
 
-        // Decrementar stock
+        // Decrementar el stock en 1 rollo
+        const nuevaCantidad = Math.max(0, stockElegido.cantidadActual - 1);
         await tx.stockAlmacen.update({
           where: { id: stockElegido.id },
           data: {
-            cantidadActual: {
-              decrement: 1
-            }
+            cantidadActual: nuevaCantidad
           }
         });
 
