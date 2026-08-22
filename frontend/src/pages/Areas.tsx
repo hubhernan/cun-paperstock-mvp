@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X } from 'lucide-react';
+import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X, RefreshCw, Building2, Check } from 'lucide-react';
 import api from '../services/api';
 
 interface TipoCompatibilidad {
@@ -492,44 +492,93 @@ const Areas: React.FC = () => {
               )}
 
               <div className="form-group">
-                <label>Tipo de Acción *</label>
-                <select 
-                  className="input-field" 
-                  value={actionType} 
-                  onChange={e => setActionType(e.target.value)}
-                  required
-                >
-                  <option value="Cambio de Papel ATB">Cambio de Papel ATB</option>
-                  <option value="Cambio de Papel BTP">Cambio de Papel BTP</option>
-                </select>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Tipo de Acción *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      border: actionType === 'Cambio de Papel ATB' ? '2px solid var(--color-primary)' : '1px solid #cbd5e1',
+                      background: actionType === 'Cambio de Papel ATB' ? '#e0e7ff' : '#f8fafc',
+                      color: actionType === 'Cambio de Papel ATB' ? 'var(--color-primary)' : '#475569',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => setActionType('Cambio de Papel ATB')}
+                  >
+                    <RefreshCw size={16} />
+                    Cambio de Papel ATB
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      border: actionType === 'Cambio de Papel BTP' ? '2px solid #d97706' : '1px solid #cbd5e1',
+                      background: actionType === 'Cambio de Papel BTP' ? '#fef3c7' : '#f8fafc',
+                      color: actionType === 'Cambio de Papel BTP' ? '#b45309' : '#475569',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => setActionType('Cambio de Papel BTP')}
+                  >
+                    <RefreshCw size={16} />
+                    Cambio de Papel BTP
+                  </button>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Origen del Papel (Almacén) *</label>
-                <select 
-                  className="input-field" 
-                  value={selectedAlmacen} 
-                  onChange={e => setSelectedAlmacen(e.target.value)}
-                  required
-                >
-                  {getAlmacenesCompatibles(selectedKiosko, selectedAreaOfKiosko).map(almacen => (
-                    <option key={almacen.id} value={almacen.id}>
-                      {almacen.nombre} ({almacen.ubicacion})
-                    </option>
-                  ))}
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'gray' }}>Bodega asignada según la Terminal del kiosko.</span>
-              </div>
-
-              <div className="form-group">
-                <label>Comentarios / Observaciones</label>
-                <textarea 
-                  className="input-field" 
-                  rows={3} 
-                  placeholder="Detalles de la acción realizada..."
-                  value={comentarios}
-                  onChange={e => setComentarios(e.target.value)}
-                />
+              <div className="form-group" style={{ marginTop: '1.25rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Origen del Papel (Almacén) *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {getAlmacenesCompatibles(selectedKiosko, selectedAreaOfKiosko).map(almacen => {
+                    const isSelected = selectedAlmacen === almacen.id;
+                    return (
+                      <button
+                        key={almacen.id}
+                        type="button"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          border: isSelected ? '2px solid #10b981' : '1px solid #cbd5e1',
+                          background: isSelected ? '#d1fae5' : '#f8fafc',
+                          color: isSelected ? '#047857' : '#334155',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => setSelectedAlmacen(almacen.id)}
+                      >
+                        {isSelected ? <Check size={16} color="#047857" /> : <Building2 size={16} />}
+                        {almacen.nombre} ({almacen.ubicacion})
+                      </button>
+                    );
+                  })}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'gray', display: 'block', marginTop: '0.4rem' }}>
+                  Bodega asignada según la Terminal del kiosko.
+                </span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
