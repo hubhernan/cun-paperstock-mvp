@@ -11,6 +11,7 @@ interface Alerta {
   fecha: string;
   tipoPapelId: string;
   tipoPapel?: { codigo: string; descripcion: string };
+  periferico?: { identificadorUnico: string; nivelAtb: number; nivelBtp: number };
 }
 
 const Alertas: React.FC = () => {
@@ -71,7 +72,42 @@ const Alertas: React.FC = () => {
     }
   };
 
-  // Determina la severidad y el color del semáforo para cada alerta
+  const getTabColor = (nivel?: number, fallbackIsNaranja?: boolean) => {
+    if (nivel !== undefined) {
+      if (nivel <= 10) {
+        return {
+          background: '#fee2e2',
+          color: '#991b1b',
+          border: '1px solid #fca5a5',
+          fontWeight: 700
+        };
+      }
+      return {
+        background: '#fef3c7',
+        color: '#92400e',
+        border: '1px solid #fde68a',
+        fontWeight: 700
+      };
+    }
+
+    if (fallbackIsNaranja) {
+      return {
+        background: '#fef3c7',
+        color: '#92400e',
+        border: '1px solid #fde68a',
+        fontWeight: 700
+      };
+    }
+
+    return {
+      background: '#fee2e2',
+      color: '#991b1b',
+      border: '1px solid #fca5a5',
+      fontWeight: 700
+    };
+  };
+
+  // Determina la severidad y el color de la tarjeta para cada alerta
   const getSemaforoStyle = (alerta: Alerta) => {
     if (alerta.leida) {
       return {
@@ -100,8 +136,11 @@ const Alertas: React.FC = () => {
       };
     }
 
-    // Alerta Crítica Kiosko (Rojo)
-    if (msg.includes('CRÍTICO') || msg.includes('CRITICO') || msg.includes('OFFLINE') || msg.includes('5%') || msg.includes('0%')) {
+    const isNaranja = msg.includes('NARANJA') || msg.includes('ÁMBAR') || msg.includes('AMBAR');
+    const worstNivel = alerta.periferico ? Math.min(alerta.periferico.nivelAtb, alerta.periferico.nivelBtp) : undefined;
+    const isCritico = worstNivel !== undefined ? worstNivel <= 10 : !isNaranja;
+
+    if (isCritico) {
       return {
         border: '1px solid var(--color-danger)',
         backgroundColor: 'var(--color-danger-bg)',
@@ -290,41 +329,49 @@ const Alertas: React.FC = () => {
                   <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
                     {(() => {
                       const msg = al.mensaje.toUpperCase();
-                      const isRojo = msg.includes('ROJO') || msg.includes('CRÍTICO') || msg.includes('CRITICO') || msg.includes('OFFLINE');
-                      const tabStyle = isRojo ? {
-                        background: '#fee2e2',
-                        color: '#b91c1c',
-                        border: '1px solid #fca5a5',
-                        fontWeight: 700
-                      } : {
-                        background: '#fef3c7',
-                        color: '#b45309',
-                        border: '1px solid #fde68a',
-                        fontWeight: 700
-                      };
+                      const isNaranjaMsg = msg.includes('NARANJA') || msg.includes('ÁMBAR') || msg.includes('AMBAR');
 
-                      const hasBoth = msg.includes('ATB Y BTP') || (msg.includes('ATB') && msg.includes('BTP'));
-                      if (hasBoth) {
+                      const styleAtb = getTabColor(al.periferico?.nivelAtb, isNaranjaMsg);
+                      const styleBtp = getTabColor(al.periferico?.nivelBtp, isNaranjaMsg);
+
+                      const showAtb = al.periferico ? al.periferico.nivelAtb <= 20 : (msg.includes('ATB') || msg.includes('ATB Y BTP'));
+                      const showBtp = al.periferico ? al.periferico.nivelBtp <= 20 : (msg.includes('BTP') || msg.includes('ATB Y BTP'));
+
+                      if (showAtb && showBtp) {
                         return (
                           <>
-                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
+                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...styleAtb }}>
                               ATB-01
                             </span>
-                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
+                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...styleBtp }}>
                               BTP-01
                             </span>
                           </>
                         );
                       }
-                      const codigo = al.tipoPapel?.codigo || (msg.includes('ATB') ? 'ATB-01' : (msg.includes('BTP') ? 'BTP-01' : ''));
-                      if (codigo) {
+
+                      if (showAtb) {
                         return (
-                          <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
-                            {codigo}
+                          <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...styleAtb }}>
+                            ATB-01
                           </span>
                         );
                       }
-                      return null;
+
+                      if (showBtp) {
+                        return (
+                          <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...styleBtp }}>
+                            BTP-01
+                          </span>
+                        );
+                      }
+
+                      const codigo = al.tipoPapel?.codigo || 'PAPEL';
+                      return (
+                        <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...styleAtb }}>
+                          {codigo}
+                        </span>
+                      );
                     })()}
                   </div>
                 </div>

@@ -20,7 +20,24 @@ export const getAlertas = async (req: Request, res: Response) => {
     }
 
     const alertas = await prisma.alertaStock.findMany(queryOptions);
-    res.json({ success: true, data: alertas });
+    const perifericos = await prisma.periferico.findMany();
+
+    const alertasEnriquecidas = alertas.map((al: any) => {
+      const match = al.mensaje.match(/CUN\d[A-Z0-9]{5,}/i) || al.mensaje.match(/Kiosko\s+([A-Z0-9_-]+)/i);
+      const codigoKiosko = match ? match[0].toUpperCase() : null;
+      const perifericoMatch = codigoKiosko ? perifericos.find(p => p.identificadorUnico.toUpperCase() === codigoKiosko) : null;
+      
+      return {
+        ...al,
+        periferico: perifericoMatch ? {
+          identificadorUnico: perifericoMatch.identificadorUnico,
+          nivelAtb: perifericoMatch.nivelAtb,
+          nivelBtp: perifericoMatch.nivelBtp
+        } : null
+      };
+    });
+
+    res.json({ success: true, data: alertasEnriquecidas });
   } catch (error) {
     console.error('Error al obtener alertas:', error);
     res.status(500).json({ success: false, message: 'Error al obtener alertas' });
