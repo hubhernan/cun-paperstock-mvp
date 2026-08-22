@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, CheckCircle, Search, Trash2, ShieldAlert, AlertTriangle, Database } from 'lucide-react';
+import { Bell, CheckCircle, Search, Trash2, ShieldAlert, AlertTriangle, Database, Package, MapPin } from 'lucide-react';
 import { getAlertas, marcarAlertaComoLeida, marcarTodasComoLeidas } from '../services/alertasService';
 import { format } from 'date-fns';
 import { useAlerts } from '../context/AlertContext';
@@ -206,6 +206,45 @@ const Alertas: React.FC = () => {
       return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
     });
 
+  const terminalStats = React.useMemo(() => {
+    const stats: Record<string, { atb: number; btp: number; totalRollos: number; totalKioskos: Set<string> }> = {
+      'Terminal 2': { atb: 0, btp: 0, totalRollos: 0, totalKioskos: new Set() },
+      'Terminal 3': { atb: 0, btp: 0, totalRollos: 0, totalKioskos: new Set() },
+      'Terminal 4': { atb: 0, btp: 0, totalRollos: 0, totalKioskos: new Set() },
+    };
+
+    alertas.filter(al => !al.leida).forEach(al => {
+      const msg = al.mensaje.toUpperCase();
+      let term = '';
+      if (msg.includes('TERMINAL 2')) term = 'Terminal 2';
+      else if (msg.includes('TERMINAL 3')) term = 'Terminal 3';
+      else if (msg.includes('TERMINAL 4')) term = 'Terminal 4';
+
+      if (term && stats[term]) {
+        const code = getKioskoCode(al.mensaje);
+        if (code) stats[term].totalKioskos.add(code);
+
+        const showAtb = al.periferico ? al.periferico.nivelAtb <= 20 : (msg.includes('ATB') || msg.includes('ATB Y BTP'));
+        const showBtp = al.periferico ? al.periferico.nivelBtp <= 20 : (msg.includes('BTP') || msg.includes('ATB Y BTP'));
+
+        if (showAtb) {
+          stats[term].atb += 1;
+          stats[term].totalRollos += 1;
+        }
+        if (showBtp) {
+          stats[term].btp += 1;
+          stats[term].totalRollos += 1;
+        }
+      }
+    });
+
+    return stats;
+  }, [alertas]);
+
+  const totalGlobalAtb = Object.values(terminalStats).reduce((acc, t) => acc + t.atb, 0);
+  const totalGlobalBtp = Object.values(terminalStats).reduce((acc, t) => acc + t.btp, 0);
+  const totalGlobalRollos = totalGlobalAtb + totalGlobalBtp;
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
@@ -237,6 +276,84 @@ const Alertas: React.FC = () => {
           {error}
         </div>
       )}
+
+      {/* Recuadros Contadores de Rollos Requeridos por Terminal para Recorrido de Ingenieros */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e293b' }}>
+            <Package className="text-blue-600" size={18} />
+            Resumen de Rollos Requeridos para Recorrido en Campo
+          </h3>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, background: '#e0e7ff', color: '#3730a3', padding: '0.3rem 0.85rem', borderRadius: '16px', border: '1px solid #c7d2fe' }}>
+            Cargar en Carrito: <strong>{totalGlobalRollos} rollos</strong> ({totalGlobalAtb} ATB / {totalGlobalBtp} BTP)
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+          {Object.entries(terminalStats).map(([termName, stat]) => {
+            const isSelected = filtroUbicacion === termName;
+            return (
+              <div 
+                key={termName}
+                className="card"
+                onClick={() => setFiltroUbicacion(filtroUbicacion === termName ? 'ALL' : termName)}
+                style={{
+                  margin: 0,
+                  padding: '1.1rem 1.25rem',
+                  border: isSelected ? '2px solid var(--color-primary)' : '1px solid #cbd5e1',
+                  background: isSelected ? '#eff6ff' : '#ffffff',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isSelected ? '0 4px 14px rgba(37,99,235,0.18)' : '0 2px 4px rgba(0,0,0,0.03)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>
+                    <MapPin size={16} className="text-blue-600" />
+                    <span>{termName}</span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600, background: '#f1f5f9', padding: '0.2rem 0.55rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    {stat.totalKioskos.size} kioskos
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  <div style={{
+                    background: stat.atb > 0 ? '#fee2e2' : '#f8fafc',
+                    border: stat.atb > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '0.55rem 0.75rem',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: stat.atb > 0 ? '#991b1b' : '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ATB Requeridos
+                    </span>
+                    <strong style={{ fontSize: '1.15rem', color: stat.atb > 0 ? '#7f1d1d' : '#64748b', fontWeight: 800 }}>
+                      {stat.atb} <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>rollos</span>
+                    </strong>
+                  </div>
+
+                  <div style={{
+                    background: stat.btp > 0 ? '#fef3c7' : '#f8fafc',
+                    border: stat.btp > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '0.55rem 0.75rem',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: stat.btp > 0 ? '#92400e' : '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      BTP Requeridos
+                    </span>
+                    <strong style={{ fontSize: '1.15rem', color: stat.btp > 0 ? '#78350f' : '#64748b', fontWeight: 800 }}>
+                      {stat.btp} <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>rollos</span>
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Barra de Filtros */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', padding: '1rem 1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
