@@ -288,28 +288,44 @@ const Alertas: React.FC = () => {
                   </p>
                   {/* Tabs/Badges de tipos de papel requeridos */}
                   <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
-                    {al.mensaje.toUpperCase().includes('ATB Y BTP') || (al.mensaje.toUpperCase().includes('ATB') && al.mensaje.toUpperCase().includes('BTP')) ? (
-                      <>
-                        <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#e0e7ff', color: 'var(--color-primary)', border: '1px solid #c7d2fe', fontWeight: 600 }}>
-                          ATB-01
-                        </span>
-                        <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}>
-                          BTP-01
-                        </span>
-                      </>
-                    ) : al.tipoPapel ? (
-                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: 'rgba(255,255,255,0.7)', border: '1px solid #cbd5e1' }}>
-                        {al.tipoPapel.codigo}
-                      </span>
-                    ) : al.mensaje.toUpperCase().includes('ATB') ? (
-                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#e0e7ff', color: 'var(--color-primary)', border: '1px solid #c7d2fe' }}>
-                        ATB-01
-                      </span>
-                    ) : al.mensaje.toUpperCase().includes('BTP') ? (
-                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
-                        BTP-01
-                      </span>
-                    ) : null}
+                    {(() => {
+                      const msg = al.mensaje.toUpperCase();
+                      const isRojo = msg.includes('ROJO') || msg.includes('CRÍTICO') || msg.includes('CRITICO') || msg.includes('OFFLINE');
+                      const tabStyle = isRojo ? {
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        border: '1px solid #fca5a5',
+                        fontWeight: 700
+                      } : {
+                        background: '#fef3c7',
+                        color: '#b45309',
+                        border: '1px solid #fde68a',
+                        fontWeight: 700
+                      };
+
+                      const hasBoth = msg.includes('ATB Y BTP') || (msg.includes('ATB') && msg.includes('BTP'));
+                      if (hasBoth) {
+                        return (
+                          <>
+                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
+                              ATB-01
+                            </span>
+                            <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
+                              BTP-01
+                            </span>
+                          </>
+                        );
+                      }
+                      const codigo = al.tipoPapel?.codigo || (msg.includes('ATB') ? 'ATB-01' : (msg.includes('BTP') ? 'BTP-01' : ''));
+                      if (codigo) {
+                        return (
+                          <span className="badge" style={{ fontSize: '0.75rem', textTransform: 'uppercase', padding: '0.2rem 0.55rem', borderRadius: '12px', ...tabStyle }}>
+                            {codigo}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
