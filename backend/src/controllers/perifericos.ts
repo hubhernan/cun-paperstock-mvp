@@ -66,10 +66,10 @@ export const updateNivelPeriferico = async (req: Request, res: Response) => {
       data: dataToUpdate
     });
 
-    const worstNivel = Math.min(perifericoActualizado.nivelAtb, perifericoActualizado.nivelBtp);
-    const lowType = perifericoActualizado.nivelAtb <= perifericoActualizado.nivelBtp ? 'ATB' : 'BTP';
+    const atbCritico = perifericoActualizado.nivelAtb <= 20;
+    const btpCritico = perifericoActualizado.nivelBtp <= 20;
 
-    if (worstNivel > 20) {
+    if (!atbCritico && !btpCritico) {
       await prisma.alertaStock.updateMany({
         where: {
           leida: false,
@@ -78,6 +78,15 @@ export const updateNivelPeriferico = async (req: Request, res: Response) => {
         data: { leida: true }
       });
     } else {
+      let lowType = '';
+      if (atbCritico && btpCritico) {
+        lowType = 'ATB y BTP';
+      } else if (atbCritico) {
+        lowType = 'ATB';
+      } else {
+        lowType = 'BTP';
+      }
+
       const alertaExistente = await prisma.alertaStock.findFirst({
         where: {
           leida: false,
@@ -87,11 +96,12 @@ export const updateNivelPeriferico = async (req: Request, res: Response) => {
 
       const area = await prisma.areaAeropuerto.findUnique({ where: { id: perifericoActualizado.areaId } });
       const firstPapel = await prisma.tipoPapel.findFirst({
-        where: { codigo: { contains: lowType, mode: 'insensitive' } }
+        where: { codigo: { contains: atbCritico ? 'ATB' : 'BTP', mode: 'insensitive' } }
       }) || await prisma.tipoPapel.findFirst();
 
       if (firstPapel) {
         const areaNombre = area?.nombre || 'Kioskos en Sitio';
+        const worstNivel = Math.min(perifericoActualizado.nivelAtb, perifericoActualizado.nivelBtp);
         const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
         const nuevoMensaje = `Kiosko ${perifericoActualizado.identificadorUnico} en ${areaNombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
 

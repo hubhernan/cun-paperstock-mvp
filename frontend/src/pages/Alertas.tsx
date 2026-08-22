@@ -286,11 +286,31 @@ const Alertas: React.FC = () => {
                   <p style={{ margin: 0, fontWeight: 500, fontSize: '0.925rem', color: al.leida ? '#64748b' : '#0f172a', lineHeight: '1.4' }}>
                     {al.mensaje}
                   </p>
-                  {al.tipoPapel && (
-                    <span className="badge badge-primary" style={{ marginTop: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', background: 'rgba(255,255,255,0.7)', border: '1px solid #cbd5e1' }}>
-                      {al.tipoPapel.codigo}
-                    </span>
-                  )}
+                  {/* Tabs/Badges de tipos de papel requeridos */}
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
+                    {al.mensaje.toUpperCase().includes('ATB Y BTP') || (al.mensaje.toUpperCase().includes('ATB') && al.mensaje.toUpperCase().includes('BTP')) ? (
+                      <>
+                        <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#e0e7ff', color: 'var(--color-primary)', border: '1px solid #c7d2fe', fontWeight: 600 }}>
+                          ATB-01
+                        </span>
+                        <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 600 }}>
+                          BTP-01
+                        </span>
+                      </>
+                    ) : al.tipoPapel ? (
+                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: 'rgba(255,255,255,0.7)', border: '1px solid #cbd5e1' }}>
+                        {al.tipoPapel.codigo}
+                      </span>
+                    ) : al.mensaje.toUpperCase().includes('ATB') ? (
+                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#e0e7ff', color: 'var(--color-primary)', border: '1px solid #c7d2fe' }}>
+                        ATB-01
+                      </span>
+                    ) : al.mensaje.toUpperCase().includes('BTP') ? (
+                      <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                        BTP-01
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 {/* Acciones */}

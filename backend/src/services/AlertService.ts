@@ -62,6 +62,8 @@ export const startAlertService = () => {
       for (const kiosko of kioskos) {
         const atb = kiosko.nivelAtb;
         const btp = kiosko.nivelBtp;
+        const atbCritico = atb <= 20;
+        const btpCritico = btp <= 20;
         let severity = 'OK';
         
         const worstNivel = Math.min(atb, btp);
@@ -74,43 +76,45 @@ export const startAlertService = () => {
           severity = 'NIVEL_1';
         }
 
-        const stateKey = `${kiosko.id}-${severity}`;
+        const stateKey = `${kiosko.id}-${severity}-${atbCritico}-${btpCritico}`;
 
-        // Auto-resolver alertas por insumo si el nivel de ese insumo es adecuado (> 20)
-        if (atb > 20) {
+        // Auto-resolver alertas si ambos volvieron a la normalidad
+        if (!atbCritico && !btpCritico) {
+          if (lastAlertState[kiosko.id]) {
+            delete lastAlertState[kiosko.id];
+          }
           await prisma.alertaStock.updateMany({
             where: {
               leida: false,
-              mensaje: { contains: kiosko.identificadorUnico },
-              AND: { mensaje: { contains: 'ATB' } }
+              mensaje: { contains: kiosko.identificadorUnico }
             },
             data: { leida: true }
           });
+          continue;
         }
 
-        if (btp > 20) {
-          await prisma.alertaStock.updateMany({
-            where: {
-              leida: false,
-              mensaje: { contains: kiosko.identificadorUnico },
-              AND: { mensaje: { contains: 'BTP' } }
-            },
-            data: { leida: true }
-          });
-        }
-
-        // Si hay una alerta y es diferente a la última reportada para este kiosko
+        // Si hay una alerta y cambió el estado de telemetría para este kiosko
         if (severity !== 'OK' && lastAlertState[kiosko.id] !== stateKey) {
           lastAlertState[kiosko.id] = stateKey;
 
-          const tipoPapelAsignado = kiosko.asignaciones[0]?.tipoPapel;
-          const lowType = atb <= btp ? 'ATB' : 'BTP';
-          const mensaje = `Kiosko ${kiosko.identificadorUnico} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType} (semáforo en Rojo).`;
+          let lowType = '';
+          if (atbCritico && btpCritico) {
+            lowType = 'ATB y BTP';
+          } else if (atbCritico) {
+            lowType = 'ATB';
+          } else {
+            lowType = 'BTP';
+          }
 
+          const estadoNombre = worstNivel <= 10 ? 'Rojo' : 'Naranja';
+          const mensaje = `Kiosko ${kiosko.identificadorUnico} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType} (semáforo en ${estadoNombre}).`;
+
+          const tipoPapelAsignado = kiosko.asignaciones[0]?.tipoPapel;
           let targetPapelId = tipoPapelAsignado?.id;
           if (!targetPapelId) {
+            const searchCode = atbCritico ? 'ATB' : 'BTP';
             const firstPapel = await prisma.tipoPapel.findFirst({
-              where: { codigo: { contains: lowType, mode: 'insensitive' } }
+              where: { codigo: { contains: searchCode, mode: 'insensitive' } }
             }) || await prisma.tipoPapel.findFirst();
             targetPapelId = firstPapel?.id;
           }
