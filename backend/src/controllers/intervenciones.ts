@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { clearKioskoAlertState } from '../services/AlertService';
 
 const prisma = new PrismaClient();
 
@@ -141,13 +142,39 @@ export const createIntervencion = async (req: Request, res: Response) => {
       }
 
       // 4. Marcar automáticamente alertas pendientes de este kiosko como leídas / resueltas
-      await tx.alertaStock.updateMany({
-        where: {
-          leida: false,
-          mensaje: { contains: intervencion.periferico.identificadorUnico }
-        },
-        data: { leida: true }
-      });
+      const updatedKiosko = await tx.periferico.findUnique({ where: { id: perifericoId } });
+      const idKioskoCodigo = intervencion.periferico.identificadorUnico;
+
+      if (accion === 'Cambio de Papel ATB') {
+        await tx.alertaStock.updateMany({
+          where: {
+            leida: false,
+            mensaje: { contains: idKioskoCodigo },
+            AND: { mensaje: { contains: 'ATB' } }
+          },
+          data: { leida: true }
+        });
+      } else if (accion === 'Cambio de Papel BTP') {
+        await tx.alertaStock.updateMany({
+          where: {
+            leida: false,
+            mensaje: { contains: idKioskoCodigo },
+            AND: { mensaje: { contains: 'BTP' } }
+          },
+          data: { leida: true }
+        });
+      }
+
+      // Si ambos insumos del kiosko están sanos (> 20%), resolver cualquier otra alerta del kiosko
+      if (updatedKiosko && updatedKiosko.nivelAtb > 20 && updatedKiosko.nivelBtp > 20) {
+        await tx.alertaStock.updateMany({
+          where: {
+            leida: false,
+            mensaje: { contains: idKioskoCodigo }
+          },
+          data: { leida: true }
+        });
+      }
 
       // 5. Registrar auditoría de seguridad y acciones
       await tx.auditoriaAcciones.create({
@@ -162,6 +189,8 @@ export const createIntervencion = async (req: Request, res: Response) => {
 
       return intervencion;
     });
+
+    clearKioskoAlertState(perifericoId);
 
     res.json({ success: true, data: result, message: 'Acción registrada con éxito y stock actualizado.' });
   } catch (error: any) {

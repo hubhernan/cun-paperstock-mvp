@@ -7,6 +7,10 @@ let alertIntervalId: NodeJS.Timeout | null = null;
 // Mapa para evitar spam de la misma alerta (ID Kiosko -> último nivel reportado)
 const lastAlertState: Record<string, string> = {};
 
+export const clearKioskoAlertState = (kioskoId: string) => {
+  delete lastAlertState[kioskoId];
+};
+
 export const startAlertService = () => {
   if (alertIntervalId) return;
 
@@ -15,8 +19,6 @@ export const startAlertService = () => {
   // Ejecutar cada 15 segundos
   alertIntervalId = setInterval(async () => {
     try {
-
-
       // 1. MONITORIZACIÓN DE STOCK GLOBAL (Almacenes)
       const tiposPapel = await prisma.tipoPapel.findMany();
       const stockAgrupado = await prisma.stockAlmacen.groupBy({
@@ -26,22 +28,17 @@ export const startAlertService = () => {
 
       for (const tp of tiposPapel) {
         const stockActual = stockAgrupado.find(s => s.tipoPapelId === tp.id)?._sum.cantidadActual || 0;
-        
         const stateKey = `global-${tp.id}-${stockActual <= tp.stockMinimo}`;
         
         if (stockActual <= tp.stockMinimo && lastAlertState[`global-${tp.id}`] !== stateKey) {
           lastAlertState[`global-${tp.id}`] = stateKey;
-
           const mensaje = `¡ALERTA GLOBAL! El stock total de ${tp.descripcion} (${stockActual} uds) ha caído por debajo del mínimo permitido (${tp.stockMinimo} uds).`;
-          
-          const nuevaAlerta = await prisma.alertaStock.create({
+          await prisma.alertaStock.create({
             data: {
               tipoPapelId: tp.id,
               mensaje: mensaje
             }
           });
-
-
         } else if (stockActual > tp.stockMinimo) {
           if (lastAlertState[`global-${tp.id}`]) {
             delete lastAlertState[`global-${tp.id}`];
@@ -50,14 +47,13 @@ export const startAlertService = () => {
       }
 
       // 2. MONITORIZACIÓN DE KIOSKOS (Telemetría)
-      // Obtener todos los kioskos activos y sus asignaciones para saber el tipo de papel
       const kioskos = await prisma.periferico.findMany({
         where: { estadoOperativo: 'ACTIVO' },
         include: {
           asignaciones: {
             include: { tipoPapel: true },
             orderBy: { fechaAsignacion: 'desc' },
-            take: 1 // Última asignación para saber qué papel tiene
+            take: 1
           },
           area: true
         }
@@ -66,7 +62,6 @@ export const startAlertService = () => {
       for (const kiosko of kioskos) {
         const atb = kiosko.nivelAtb;
         const btp = kiosko.nivelBtp;
-        const estado = kiosko.estadoConexion;
         let severity = 'OK';
         
         const worstNivel = Math.min(atb, btp);
@@ -81,15 +76,37 @@ export const startAlertService = () => {
 
         const stateKey = `${kiosko.id}-${severity}`;
 
+        // Auto-resolver alertas por insumo si el nivel de ese insumo es adecuado (> 20)
+        if (atb > 20) {
+          await prisma.alertaStock.updateMany({
+            where: {
+              leida: false,
+              mensaje: { contains: kiosko.identificadorUnico },
+              AND: { mensaje: { contains: 'ATB' } }
+            },
+            data: { leida: true }
+          });
+        }
+
+        if (btp > 20) {
+          await prisma.alertaStock.updateMany({
+            where: {
+              leida: false,
+              mensaje: { contains: kiosko.identificadorUnico },
+              AND: { mensaje: { contains: 'BTP' } }
+            },
+            data: { leida: true }
+          });
+        }
+
         // Si hay una alerta y es diferente a la última reportada para este kiosko
         if (severity !== 'OK' && lastAlertState[kiosko.id] !== stateKey) {
-          lastAlertState[kiosko.id] = stateKey; // Registrar que ya alertamos esto
+          lastAlertState[kiosko.id] = stateKey;
 
           const tipoPapelAsignado = kiosko.asignaciones[0]?.tipoPapel;
           const lowType = atb <= btp ? 'ATB' : 'BTP';
           const mensaje = `Kiosko ${kiosko.identificadorUnico} en ${kiosko.area.nombre} tiene nivel crítico de ${lowType} (semáforo en Rojo).`;
 
-          // Obtener tipoPapelId para guardar la alerta
           let targetPapelId = tipoPapelAsignado?.id;
           if (!targetPapelId) {
             const firstPapel = await prisma.tipoPapel.findFirst({
@@ -125,11 +142,9 @@ export const startAlertService = () => {
             }
           }
         } else if (severity === 'OK') {
-          // Resetear si volvió a la normalidad
           if (lastAlertState[kiosko.id]) {
              delete lastAlertState[kiosko.id];
           }
-          // Marcar automáticamente como atendidas/leídas las alertas de este kiosko
           await prisma.alertaStock.updateMany({
             where: {
               leida: false,
@@ -142,5 +157,5 @@ export const startAlertService = () => {
     } catch (error) {
       console.error('❌ Error in AlertService:', error);
     }
-  }, 15000); // 15s
+  }, 15000);
 };
