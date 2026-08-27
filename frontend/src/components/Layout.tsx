@@ -41,6 +41,15 @@ const Layout: React.FC = () => {
             <ArrowRightLeft size={20} />
             Movimientos
           </Link>
+          <Link to="/alertas" className={`nav-link ${isActive('/alertas') ? 'active' : ''}`}>
+            <Bell size={20} />
+            Alertas
+            {alertas.length > 0 && (
+              <span style={{ marginLeft: 'auto', background: 'var(--color-danger)', color: 'white', padding: '0.15rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                {alertas.length}
+              </span>
+            )}
+          </Link>
           {user?.rol === 'Admin' && (
             <Link to="/usuarios" className={`nav-link ${isActive('/usuarios') ? 'active' : ''}`}>
               <Users size={20} />
@@ -49,15 +58,6 @@ const Layout: React.FC = () => {
           )}
           {(user?.rol === 'Admin' || user?.rol === 'Supervisor') && (
             <>
-              <Link to="/alertas" className={`nav-link ${isActive('/alertas') ? 'active' : ''}`}>
-                <Bell size={20} />
-                Alertas
-                {alertas.length > 0 && (
-                  <span style={{ marginLeft: 'auto', background: 'var(--color-danger)', color: 'white', padding: '0.15rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                    {alertas.length}
-                  </span>
-                )}
-              </Link>
               <Link to="/reportes" className={`nav-link ${isActive('/reportes') ? 'active' : ''}`}>
                 <FileText size={20} />
                 Reportes
@@ -89,15 +89,14 @@ const Layout: React.FC = () => {
         <header className="topbar">
           <h2 className="text-lg font-semibold m-0">Aeropuerto Internacional de Cancún</h2>
           <div className="flex items-center gap-4 relative">
-            {(user?.rol === 'Admin' || user?.rol === 'Supervisor') && (
-              <div className="relative">
-                <button 
-                  className="btn btn-icon p-2 text-gray-300 hover:text-white relative bg-transparent border-none cursor-pointer"
-                  onClick={() => {
-                    refrescarAlertas();
-                    setShowDropdown(!showDropdown);
-                  }}
-                >
+            <div className="relative">
+              <button 
+                className="btn btn-icon p-2 text-gray-300 hover:text-white relative bg-transparent border-none cursor-pointer"
+                onClick={() => {
+                  refrescarAlertas();
+                  setShowDropdown(!showDropdown);
+                }}
+              >
                   <Bell size={24} />
                   {alertas.length > 0 && (
                     <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
@@ -141,7 +140,6 @@ const Layout: React.FC = () => {
                   </div>
                 )}
               </div>
-            )}
           </div>
         </header>
         <div className="page-content relative">
