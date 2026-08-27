@@ -213,52 +213,80 @@ async function main() {
     create: { id: '00000000-0000-0000-0000-000000000005', nombre: 'Kioskos Terminal 4', terminal: 'Terminal 4', zona: 'Público' },
   });
 
-  // Generar kioskos T2 (48 Kioskos)
+  // Generar kioskos T2 (48 Kioskos - 20 con alertas activas)
   const perifsT2 = [];
   for (let i = 1; i <= 48; i++) {
     const num = i.toString().padStart(3, '0');
-    const isCriticalBtp = i === 2 || i === 9; // Kioskos CUN2AKA002 y CUN2AKA009 en rojo BTP
+    const isAlert = i <= 20; // 20 kioskos en alerta
+    let nivelAtb = 100;
+    let nivelBtp = 100;
+
+    if (isAlert) {
+      if (i % 3 === 0) { nivelAtb = 5; nivelBtp = 5; } // Ambos críticos (Rojo)
+      else if (i % 3 === 1) { nivelAtb = 8; nivelBtp = 100; } // ATB Crítico (Rojo)
+      else { nivelAtb = 100; nivelBtp = 15; } // BTP Advertencia (Ámbar)
+    }
+
     perifsT2.push({
       identificadorUnico: `CUN2AKA${num}`,
       marca: 'SITA',
       modelo: 'Kiosk V2',
       areaId: areaT2.id,
       estadoOperativo: 'ACTIVO',
-      nivelAtb: 100,
-      nivelBtp: isCriticalBtp ? 15 : 100,
+      nivelAtb,
+      nivelBtp,
     });
   }
   await prisma.periferico.createMany({ data: perifsT2, skipDuplicates: true });
 
-  // Generar kioskos T3 (60 Kioskos)
+  // Generar kioskos T3 (60 Kioskos - 30 con alertas activas)
   const perifsT3 = [];
   for (let i = 1; i <= 60; i++) {
     const num = i.toString().padStart(3, '0');
-    const isCriticalAtb = [4, 5, 6, 8, 9, 10].includes(i); // Kioskos CUN3AKA004, 005, 006, 008, 009, 010 en rojo ATB
+    const isAlert = i <= 30; // 30 kioskos en alerta
+    let nivelAtb = 100;
+    let nivelBtp = 100;
+
+    if (isAlert) {
+      if (i % 3 === 0) { nivelAtb = 5; nivelBtp = 5; } // Ambos críticos (Rojo)
+      else if (i % 3 === 1) { nivelAtb = 6; nivelBtp = 100; } // ATB Crítico (Rojo)
+      else { nivelAtb = 100; nivelBtp = 14; } // BTP Advertencia (Ámbar)
+    }
+
     perifsT3.push({
       identificadorUnico: `CUN3AKA${num}`,
       marca: 'SITA',
       modelo: 'Kiosk V2',
       areaId: areaT3.id,
       estadoOperativo: 'ACTIVO',
-      nivelAtb: isCriticalAtb ? 15 : 100,
-      nivelBtp: 100,
+      nivelAtb,
+      nivelBtp,
     });
   }
   await prisma.periferico.createMany({ data: perifsT3, skipDuplicates: true });
 
-  // Generar kioskos T4 (74 Kioskos)
+  // Generar kioskos T4 (74 Kioskos - 55 con alertas activas)
   const perifsT4 = [];
   for (let i = 1; i <= 74; i++) {
     const num = i.toString().padStart(3, '0');
+    const isAlert = i <= 55; // 55 kioskos en alerta
+    let nivelAtb = 100;
+    let nivelBtp = 100;
+
+    if (isAlert) {
+      if (i % 3 === 0) { nivelAtb = 4; nivelBtp = 4; } // Ambos críticos (Rojo)
+      else if (i % 3 === 1) { nivelAtb = 7; nivelBtp = 100; } // ATB Crítico (Rojo)
+      else { nivelAtb = 100; nivelBtp = 12; } // BTP Advertencia (Ámbar)
+    }
+
     perifsT4.push({
       identificadorUnico: `CUN4AKA${num}`,
       marca: 'SITA',
       modelo: 'Kiosk V3',
       areaId: areaT4.id,
       estadoOperativo: 'ACTIVO',
-      nivelAtb: 100,
-      nivelBtp: 100,
+      nivelAtb,
+      nivelBtp,
     });
   }
   await prisma.periferico.createMany({ data: perifsT4, skipDuplicates: true });
