@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import MovimientoModal from '../components/MovimientoModal';
 import { exportToExcel } from '../utils/exportUtils';
 
+import { useAuth } from '../context/AuthContext';
+
 interface Movimiento {
   id: string;
   tipoMovimiento: string;
@@ -18,6 +20,10 @@ interface Movimiento {
 }
 
 const Movimientos: React.FC = () => {
+  const { user } = useAuth();
+  const rolUpper = (user?.rol || '').toUpperCase();
+  const isAdminOrSupervisor = rolUpper.includes('ADMIN') || rolUpper.includes('SUPERVISOR');
+
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -112,11 +118,13 @@ const Movimientos: React.FC = () => {
             <option value="MERMA">Merma</option>
           </select>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn btn-primary" onClick={exportToExcelHandler} style={{ background: '#107c41' }}>
-            <Download size={18} />
-            Exportar a Excel
-          </button>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {isAdminOrSupervisor && (
+            <button className="btn btn-primary" onClick={exportToExcelHandler} style={{ background: '#107c41' }}>
+              <Download size={18} />
+              Exportar a Excel
+            </button>
+          )}
           <button 
             className="btn btn-primary" 
             style={{ background: 'var(--color-success)' }}
@@ -133,14 +141,16 @@ const Movimientos: React.FC = () => {
             <ArrowRightLeft size={18} />
             Transferencia
           </button>
-          <button 
-            className="btn btn-primary" 
-            style={{ background: 'var(--color-danger)' }}
-            onClick={() => { setModalTipo('MERMA'); setModalOpen(true); }}
-          >
-            <AlertTriangle size={18} />
-            Merma
-          </button>
+          {isAdminOrSupervisor && (
+            <button 
+              className="btn btn-primary" 
+              style={{ background: 'var(--color-danger)' }}
+              onClick={() => { setModalTipo('MERMA'); setModalOpen(true); }}
+            >
+              <AlertTriangle size={18} />
+              Merma
+            </button>
+          )}
         </div>
       </div>
 
