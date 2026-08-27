@@ -11,11 +11,14 @@ import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/', authenticateToken, requireRole(['Admin']), getUsuarios);
-router.get('/roles', authenticateToken, requireRole(['Admin']), getRoles);
-router.post('/', authenticateToken, requireRole(['Admin']), createUsuario);
-router.put('/:id', authenticateToken, requireRole(['Admin']), updateUsuario);
-router.patch('/:id/toggle-activo', authenticateToken, requireRole(['Admin']), toggleUsuarioActivo);
-router.patch('/:id/reset-password', authenticateToken, requireRole(['Admin']), resetUsuarioPassword);
+// Lectura de lista de usuarios y roles permitida para Admin, Supervisor y Operador
+router.get('/', authenticateToken, requireRole(['Admin', 'Supervisor', 'Operador']), getUsuarios);
+router.get('/roles', authenticateToken, requireRole(['Admin', 'Supervisor', 'Operador']), getRoles);
+
+// Modificaciones, alta, edición de roles y passwords restringidos a Admin y Supervisor
+router.post('/', authenticateToken, requireRole(['Admin', 'Supervisor']), createUsuario);
+router.put('/:id', authenticateToken, requireRole(['Admin', 'Supervisor']), updateUsuario);
+router.patch('/:id/toggle-activo', authenticateToken, requireRole(['Admin', 'Supervisor']), toggleUsuarioActivo);
+router.patch('/:id/reset-password', authenticateToken, requireRole(['Admin', 'Supervisor']), resetUsuarioPassword);
 
 export default router;

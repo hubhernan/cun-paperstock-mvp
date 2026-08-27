@@ -70,6 +70,9 @@ const Usuarios: React.FC = () => {
   // Form states - Reset Password
   const [newPassword, setNewPassword] = useState('');
 
+  const rolUpper = (user?.rol || '').toUpperCase();
+  const isSuperUser = rolUpper.includes('ADMIN') || rolUpper.includes('SUPERVISOR');
+
   const fetchDatos = async () => {
     setLoading(true);
     setError('');
@@ -89,12 +92,8 @@ const Usuarios: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user?.rol === 'Admin') {
-      fetchDatos();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+    fetchDatos();
+  }, []);
 
   // Filtrado dinámico
   const usuariosFiltrados = useMemo(() => {
@@ -235,16 +234,6 @@ const Usuarios: React.FC = () => {
     }
   };
 
-  if (user?.rol !== 'Admin') {
-    return (
-      <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-        <Shield size={56} color="var(--color-danger)" style={{ marginBottom: '1rem' }} />
-        <h2>Acceso Restringido a Modo Super Usuario</h2>
-        <p style={{ color: 'var(--color-text-muted)' }}>No tienes privilegios de Administrador para gestionar usuarios y accesos.</p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
@@ -252,18 +241,22 @@ const Usuarios: React.FC = () => {
         <div>
           <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary-dark)' }}>
             <Shield className="text-purple-600" size={28} />
-            Administración de Usuarios y Permisos (Modo Super Usuario)
+            Directorio de Usuarios y Permisos {isSuperUser ? '(Modo Super Usuario)' : '(Modo Lectura)'}
           </h2>
-          <p style={{ color: 'var(--color-text-muted)', margin: 0 }}>Gestión de cuentas (alta/baja), presencia en línea y asignación de derechos</p>
+          <p style={{ color: 'var(--color-text-muted)', margin: 0 }}>
+            {isSuperUser ? 'Gestión de cuentas (alta/baja), presencia en línea y asignación de derechos' : 'Consulta de personal registrado, estatus de cuenta y presencia en tiempo real'}
+          </p>
         </div>
-        <button 
-          className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#7e22ce' }}
-          onClick={() => { setShowCreateModal(true); setFormError(''); }}
-        >
-          <UserPlus size={18} />
-          + Dar de Alta Nuevo Usuario
-        </button>
+        {isSuperUser && (
+          <button 
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#7e22ce' }}
+            onClick={() => { setShowCreateModal(true); setFormError(''); }}
+          >
+            <UserPlus size={18} />
+            + Dar de Alta Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {/* Mensajes de Notificación */}
@@ -353,7 +346,7 @@ const Usuarios: React.FC = () => {
                 <th>ESTATUS DE CUENTA</th>
                 <th>PRESENCIA EN LÍNEA</th>
                 <th>TURNO Y DISPOSITIVO</th>
-                <th>ACCIONES DE SUPER USUARIO</th>
+                <th>{isSuperUser ? 'ACCIONES DE SUPER USUARIO' : 'PERMISOS'}</th>
               </tr>
             </thead>
             <tbody>
@@ -441,48 +434,65 @@ const Usuarios: React.FC = () => {
 
                   {/* ACCIONES */}
                   <td>
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      {/* Botón Editar Derechos */}
-                      <button 
-                        className="btn"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#3b82f6', color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                        onClick={() => handleOpenEditModal(usr)}
-                        title="Editar Datos y Asignar Rol"
-                      >
-                        <Edit3 size={15} />
-                        Editar / Rol
-                      </button>
+                    {isSuperUser ? (
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        {/* Botón Editar Derechos */}
+                        <button 
+                          className="btn"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#3b82f6', color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                          onClick={() => handleOpenEditModal(usr)}
+                          title="Editar Datos y Asignar Rol"
+                        >
+                          <Edit3 size={15} />
+                          Editar / Rol
+                        </button>
 
-                      {/* Botón Restablecer Contraseña */}
-                      <button 
-                        className="btn"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#f59e0b', color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                        onClick={() => { setResetPassUsuario(usr); setNewPassword(''); }}
-                        title="Restablecer Contraseña"
-                      >
-                        <Key size={15} />
-                        Password
-                      </button>
+                        {/* Botón Restablecer Contraseña */}
+                        <button 
+                          className="btn"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#f59e0b', color: 'white', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                          onClick={() => { setResetPassUsuario(usr); setNewPassword(''); }}
+                          title="Restablecer Contraseña"
+                        >
+                          <Key size={15} />
+                          Password
+                        </button>
 
-                      {/* Botón Alta / Baja (Toggle Activo) */}
-                      <button 
-                        className="btn"
-                        style={{ 
-                          padding: '0.25rem 0.5rem', 
-                          fontSize: '0.8rem', 
-                          background: usr.activo ? '#ef4444' : '#10b981', 
-                          color: 'white',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.2rem'
-                        }}
-                        onClick={() => handleToggleActivo(usr)}
-                        title={usr.activo ? 'Dar de Baja (Bloquear acceso)' : 'Dar de Alta (Reactivar acceso)'}
-                      >
-                        <Power size={15} />
-                        {usr.activo ? 'Baja' : 'Alta'}
-                      </button>
-                    </div>
+                        {/* Botón Alta / Baja (Toggle Activo) */}
+                        <button 
+                          className="btn"
+                          style={{ 
+                            padding: '0.25rem 0.5rem', 
+                            fontSize: '0.8rem', 
+                            background: usr.activo ? '#ef4444' : '#10b981', 
+                            color: 'white',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem'
+                          }}
+                          onClick={() => handleToggleActivo(usr)}
+                          title={usr.activo ? 'Dar de Baja (Bloquear acceso)' : 'Dar de Alta (Reactivar acceso)'}
+                        >
+                          <Power size={15} />
+                          {usr.activo ? 'Baja' : 'Alta'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ 
+                        fontSize: '0.75rem', 
+                        color: '#64748b', 
+                        fontStyle: 'italic', 
+                        padding: '0.25rem 0.6rem', 
+                        background: '#f1f5f9', 
+                        borderRadius: '12px', 
+                        border: '1px solid #cbd5e1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem' 
+                      }}>
+                        <Lock size={13} /> Solo Lectura (Sin Permisos)
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

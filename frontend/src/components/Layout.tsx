@@ -50,7 +50,7 @@ const Layout: React.FC = () => {
               </span>
             )}
           </Link>
-          {user?.rol === 'Admin' && (
+          {(user?.rol === 'Admin' || user?.rol === 'Supervisor' || user?.rol === 'Operador') && (
             <Link to="/usuarios" className={`nav-link ${isActive('/usuarios') ? 'active' : ''}`}>
               <Users size={20} />
               Usuarios
