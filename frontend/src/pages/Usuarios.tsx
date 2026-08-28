@@ -63,6 +63,7 @@ const Usuarios: React.FC = () => {
   // Form states - Editar Usuario
   const [editNombre, setEditNombre] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
   const [editRolNombre, setEditRolNombre] = useState('');
   const [editTurno, setEditTurno] = useState('');
   const [editDispositivo, setEditDispositivo] = useState('');
@@ -156,6 +157,7 @@ const Usuarios: React.FC = () => {
     setEditUsuario(usr);
     setEditNombre(usr.nombre);
     setEditEmail(usr.email);
+    setEditPassword('');
     setEditRolNombre(usr.rol.nombre);
     setEditTurno(usr.turno || 'Matutino');
     setEditDispositivo(usr.dispositivo || 'iPad');
@@ -172,12 +174,13 @@ const Usuarios: React.FC = () => {
       await updateUsuario(editUsuario.id, {
         nombre: editNombre,
         email: editEmail,
+        password: editPassword.trim() ? editPassword.trim() : undefined,
         rolNombre: editRolNombre,
         turno: editTurno,
         dispositivo: editDispositivo
       });
       setEditUsuario(null);
-      setSuccessMsg(`Derechos y datos de ${editNombre} actualizados.`);
+      setSuccessMsg(`Datos y privilegios de ${editNombre} actualizados correctamente.`);
       setTimeout(() => setSuccessMsg(''), 4000);
       fetchDatos();
     } catch (err: any) {
@@ -193,13 +196,13 @@ const Usuarios: React.FC = () => {
     if (!window.confirm(`¿Confirmas ${accionTexto} al usuario ${usr.nombre}?`)) return;
 
     try {
-      await toggleUsuarioActivo(usr.id);
-      setSuccessMsg(`Usuario ${usr.nombre} ha sido ${usr.activo ? 'dado de BAJA' : 'dado de ALTA'}.`);
+      const res = await toggleUsuarioActivo(usr.id);
+      setSuccessMsg(res.message || `Usuario ${usr.nombre} ha sido ${usr.activo ? 'dado de BAJA' : 'dado de ALTA'}.`);
       setTimeout(() => setSuccessMsg(''), 4000);
       fetchDatos();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Error al cambiar el estado del usuario');
+      alert(err.response?.data?.message || 'Error al cambiar el estado del usuario');
     }
   };
 
@@ -626,13 +629,24 @@ const Usuarios: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Correo Electrónico</label>
+                <label>Correo Electrónico / Usuario</label>
                 <input 
                   type="email" 
                   className="input-field" 
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Nueva Contraseña (Opcional)</label>
+                <input 
+                  type="password" 
+                  className="input-field" 
+                  placeholder="Dejar en blanco para mantener la contraseña actual"
+                  value={editPassword}
+                  onChange={e => setEditPassword(e.target.value)}
                 />
               </div>
 

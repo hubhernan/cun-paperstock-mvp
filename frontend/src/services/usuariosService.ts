@@ -54,6 +54,7 @@ export const createUsuario = async (userData: {
 export const updateUsuario = async (id: string, userData: {
   nombre?: string;
   email?: string;
+  password?: string;
   rolNombre?: string;
   turno?: string;
   dispositivo?: string;

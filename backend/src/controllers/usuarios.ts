@@ -140,7 +140,7 @@ export const createUsuario = async (req: Request, res: Response) => {
 export const updateUsuario = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { nombre, email, rolNombre, turno, dispositivo } = req.body;
+    const { nombre, email, password, newPassword, rolNombre, turno, dispositivo } = req.body;
     const adminId = (req as any).user.id;
 
     const usuarioExistente = await prisma.usuario.findUnique({
@@ -153,7 +153,22 @@ export const updateUsuario = async (req: Request, res: Response) => {
 
     const dataToUpdate: any = {};
     if (nombre) dataToUpdate.nombre = nombre.trim();
-    if (email) dataToUpdate.email = email.toLowerCase().trim();
+
+    if (email && email.toLowerCase().trim() !== usuarioExistente.email) {
+      const emailEnUso = await prisma.usuario.findUnique({
+        where: { email: email.toLowerCase().trim() }
+      });
+      if (emailEnUso) {
+        return res.status(400).json({ success: false, message: 'El correo electrónico / usuario ya se encuentra en uso' });
+      }
+      dataToUpdate.email = email.toLowerCase().trim();
+    }
+
+    const passToUpdate = password || newPassword;
+    if (passToUpdate && passToUpdate.trim().length >= 4) {
+      dataToUpdate.passwordHash = await bcrypt.hash(passToUpdate.trim(), 10);
+    }
+
     if (turno !== undefined) dataToUpdate.turno = turno;
     if (dispositivo !== undefined) dataToUpdate.dispositivo = dispositivo;
 
@@ -183,7 +198,7 @@ export const updateUsuario = async (req: Request, res: Response) => {
         accion: 'MODIFICACION_USUARIO',
         entidad: 'Usuario',
         entidadId: usuarioActualizado.id,
-        detalles: `Edición de datos/derechos para ${usuarioActualizado.nombre} (Rol: ${usuarioActualizado.rol.nombre})`
+        detalles: `Edición de datos/derechos para ${usuarioActualizado.nombre} (${usuarioActualizado.email}, Rol: ${usuarioActualizado.rol.nombre})`
       }
     });
 
@@ -198,6 +213,10 @@ export const toggleUsuarioActivo = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const adminId = (req as any).user.id;
+
+    if (id === adminId) {
+      return res.status(400).json({ success: false, message: 'No puedes dar de baja a tu propia cuenta con la que iniciaste sesión' });
+    }
 
     const usuarioExistente = await prisma.usuario.findUnique({
       where: { id: id as string }
