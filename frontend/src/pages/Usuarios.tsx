@@ -17,7 +17,8 @@ import {
   Lock,
   Wifi,
   WifiOff,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import { 
   getUsuarios, 
@@ -92,13 +93,20 @@ const Usuarios: React.FC = () => {
     }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<Date | null>(new Date());
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchDatos();
+    setUltimaActualizacion(new Date());
+    setSuccessMsg('Estatus de presencia y datos de usuarios actualizados correctamente.');
+    setTimeout(() => setSuccessMsg(''), 3000);
+    setRefreshing(false);
+  };
+
   useEffect(() => {
     fetchDatos();
-    const interval = setInterval(() => {
-      fetchDatos();
-    }, 4000); // Polling automático cada 4 segundos para actualizar presencia en línea en tiempo real
-
-    return () => clearInterval(interval);
   }, []);
 
   // Filtrado dinámico
@@ -255,16 +263,47 @@ const Usuarios: React.FC = () => {
             {isSuperUser ? 'Gestión de cuentas (alta/baja), presencia en línea y asignación de derechos' : 'Consulta de personal registrado, estatus de cuenta y presencia en tiempo real'}
           </p>
         </div>
-        {isSuperUser && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button 
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#7e22ce' }}
-            onClick={() => { setShowCreateModal(true); setFormError(''); }}
+            className="btn"
+            style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '0.4rem', 
+              background: '#0284c7', 
+              color: 'white',
+              border: 'none',
+              padding: '0.55rem 0.9rem',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: refreshing ? 'not-allowed' : 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            title="Actualizar la presencia en línea e información de usuarios en tiempo real"
           >
-            <UserPlus size={18} />
-            + Dar de Alta Nuevo Usuario
+            <RefreshCw size={17} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            {refreshing ? 'Actualizando...' : 'Actualizar Presencia en Tiempo Real'}
           </button>
-        )}
+
+          {isSuperUser && (
+            <button 
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#7e22ce' }}
+              onClick={() => { setShowCreateModal(true); setFormError(''); }}
+            >
+              <UserPlus size={18} />
+              + Dar de Alta Nuevo Usuario
+            </button>
+          )}
+
+          {ultimaActualizacion && (
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', width: '100%', textAlign: 'right', marginTop: '0.2rem' }}>
+              Última actualización solicitada: {format(ultimaActualizacion, 'HH:mm:ss')} hrs
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Mensajes de Notificación */}

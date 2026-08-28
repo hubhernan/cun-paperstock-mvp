@@ -8,6 +8,8 @@ import { userLastSeenMap } from '../middleware/auth';
 
 export const getUsuarios = async (req: Request, res: Response) => {
   try {
+    const currentUserId = (req as any).user?.id;
+
     const usuarios = await prisma.usuario.findMany({
       select: {
         id: true,
@@ -46,10 +48,19 @@ export const getUsuarios = async (req: Request, res: Response) => {
         let fechaUltimaActividad = lastSeenMs > auditMs ? lastSeenDate : (ultimaAuditoria ? ultimaAuditoria.fecha : null);
         let enLinea = false;
 
-        // Se considera En Línea si realizó una petición HTTP en los últimos 3 minutos o si inició sesión recientemente (sin LOGOUT)
-        if (lastSeenMs > 0 && (ahora - lastSeenMs) < 3 * 60 * 1000) {
+        // Reglas de Presencia en Tiempo Real:
+        // 1. Si es el usuario actual que está realizando la consulta HTTP en este momento
+        if (currentUserId && usr.id === currentUserId) {
           enLinea = true;
-        } else if (ultimaAuditoria && (ahora - auditMs) < 5 * 60 * 1000 && ultimaAuditoria.accion !== 'LOGOUT') {
+          fechaUltimaActividad = new Date();
+          userLastSeenMap.set(usr.id, new Date());
+        }
+        // 2. Si el usuario ha realizado peticiones en los últimos 15 minutos
+        else if (lastSeenMs > 0 && (ahora - lastSeenMs) < 15 * 60 * 1000) {
+          enLinea = true;
+        }
+        // 3. Si tiene registro de inicio de sesión reciente y su última acción no fue LOGOUT
+        else if (ultimaAuditoria && (ahora - auditMs) < 120 * 60 * 1000 && ultimaAuditoria.accion !== 'LOGOUT') {
           enLinea = true;
         }
 

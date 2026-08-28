@@ -30,6 +30,9 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '8h' }
     );
 
+    // Registrar presencia en tiempo real
+    userLastSeenMap.set(usuario.id, new Date());
+
     // Registro de auditoría
     await registrarAuditoria(usuario.id, 'LOGIN', 'Usuario', usuario.id, 'Inicio de sesión exitoso', req.ip);
 
