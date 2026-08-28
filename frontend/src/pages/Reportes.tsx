@@ -19,8 +19,10 @@ const Reportes: React.FC = () => {
   const [fechaFin, setFechaFin] = useState('');
   const [areas, setAreas] = useState<any[]>([]);
   const [almacenes, setAlmacenes] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [areaId, setAreaId] = useState('');
   const [almacenId, setAlmacenId] = useState('');
+  const [usuarioId, setUsuarioId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,12 +35,14 @@ const Reportes: React.FC = () => {
   useEffect(() => {
     const fetchFiltros = async () => {
       try {
-        const [resAreas, resAlmacenes] = await Promise.all([
+        const [resAreas, resAlmacenes, resUsuarios] = await Promise.all([
           api.get('/areas'),
-          api.get('/almacenes')
+          api.get('/almacenes'),
+          api.get('/usuarios')
         ]);
         setAreas(resAreas.data.data || resAreas.data);
         setAlmacenes(resAlmacenes.data.data || resAlmacenes.data);
+        setUsuarios(resUsuarios.data.data || resUsuarios.data);
       } catch (err) {
         console.error('Error cargando filtros', err);
       }
@@ -62,7 +66,8 @@ const Reportes: React.FC = () => {
         fechaInicio,
         fechaFin,
         ...(areaId && { areaId }),
-        ...(almacenId && { almacenId })
+        ...(almacenId && { almacenId }),
+        ...(usuarioId && { usuarioId })
       };
 
       if (tipoReporte === 'movimientos') {
@@ -217,6 +222,11 @@ const Reportes: React.FC = () => {
     setReportData([]);
     setReportColumns([]);
     setError('');
+    setAreaId('');
+    setAlmacenId('');
+    setUsuarioId('');
+    setFechaInicio('');
+    setFechaFin('');
   };
 
   return (
@@ -298,6 +308,22 @@ const Reportes: React.FC = () => {
               <option value="">Todos los Almacenes</option>
               {almacenes.map(a => (
                 <option key={a.id} value={a.id}>{a.nombre} - {a.ubicacion}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {(tipoReporte === 'movimientosIngeniero' || tipoReporte === 'movimientos') && (
+          <div>
+            <label className="form-label">Filtrar por Ingeniero / Usuario</label>
+            <select 
+              value={usuarioId} 
+              onChange={(e) => setUsuarioId(e.target.value)}
+              className="form-input"
+            >
+              <option value="">Todos los Ingenieros</option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>{u.nombre} ({u.email})</option>
               ))}
             </select>
           </div>
