@@ -7,7 +7,8 @@ import {
   getReporteConsumoAlmacen,
   getReporteMovimientosIngeniero,
   getReporteKioskosAbastecidos,
-  getReporteIncidentes
+  getReporteIncidentes,
+  getReporteCorteDiarioKioskos
 } from '../services/reportesService';
 import { exportToExcel } from '../utils/exportUtils';
 import { format } from 'date-fns';
@@ -195,6 +196,26 @@ const Reportes: React.FC = () => {
           diferencia: d.diferencia,
           comentarios: d.comentarios || '-'
         }));
+      } else if (tipoReporte === 'corteDiario') {
+        data = await getReporteCorteDiarioKioskos(filters);
+        title = 'Corte Diario de Kioskos (Papel Instalado 00:00 a 23:59 hrs)';
+        fileName = 'reporte_corte_diario_kioskos';
+        columns = [
+          { header: 'Fecha / Hora', dataKey: 'fechaFormat' },
+          { header: 'Kiosko', dataKey: 'kiosko' },
+          { header: 'Área / Ubicación', dataKey: 'areaNombre' },
+          { header: 'Tipo Papel', dataKey: 'codigoPapel' },
+          { header: 'Cantidad (Rollos)', dataKey: 'cantidad' },
+          { header: 'Ingeniero', dataKey: 'usuarioNombre' },
+        ];
+        data = data.map((d: any) => ({
+          fechaFormat: format(new Date(d.fechaAsignacion), 'dd/MM/yyyy HH:mm'),
+          kiosko: d.periferico?.identificadorUnico || '',
+          areaNombre: d.periferico?.area?.nombre || '',
+          codigoPapel: d.tipoPapel?.codigo || '',
+          cantidad: d.cantidadAsignada,
+          usuarioNombre: d.usuario?.nombre || ''
+        }));
       }
 
       if (data.length === 0) {
@@ -253,6 +274,7 @@ const Reportes: React.FC = () => {
           >
             <option value="movimientos">Historial de Movimientos</option>
             <option value="valorStock">Valor de Stock Actual</option>
+            <option value="corteDiario">Corte Diario de Kioskos (Papel Instalado 00:00 - 23:59)</option>
             <option value="consumoArea">Consumo por Área</option>
             <option value="consumoAlmacen">Consumo por Almacén</option>
             <option value="movimientosIngeniero">Movimientos por Ingeniero</option>
@@ -284,7 +306,7 @@ const Reportes: React.FC = () => {
           </>
         )}
 
-        {tipoReporte === 'consumoArea' && (
+        {(tipoReporte === 'consumoArea' || tipoReporte === 'corteDiario') && (
           <div>
             <label className="form-label">Filtrar por Área</label>
             <select 
@@ -316,7 +338,7 @@ const Reportes: React.FC = () => {
           </div>
         )}
 
-        {(tipoReporte === 'movimientosIngeniero' || tipoReporte === 'movimientos') && (
+        {(tipoReporte === 'movimientosIngeniero' || tipoReporte === 'movimientos' || tipoReporte === 'corteDiario') && (
           <div>
             <label className="form-label">Filtrar por Ingeniero / Usuario</label>
             <select 
@@ -350,9 +372,9 @@ const Reportes: React.FC = () => {
         )}
       </div>
 
-      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área, Consumo por Almacén y Movimientos por Ingeniero */}
+      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área, Consumo por Almacén, Movimientos por Ingeniero y Corte Diario */}
       {(() => {
-        const esReporteConsumo = tipoReporte === 'consumoArea' || tipoReporte === 'consumoAlmacen' || tipoReporte === 'movimientosIngeniero';
+        const esReporteConsumo = tipoReporte === 'consumoArea' || tipoReporte === 'consumoAlmacen' || tipoReporte === 'movimientosIngeniero' || tipoReporte === 'corteDiario';
 
         const totalATB = esReporteConsumo ? reportData.reduce((acc, row) => {
           const cod = (row.codigoPapel || '').toUpperCase();
@@ -363,6 +385,8 @@ const Reportes: React.FC = () => {
           const cod = (row.codigoPapel || '').toUpperCase();
           return cod.includes('BTP') ? acc + (Number(row.cantidad) || 0) : acc;
         }, 0) : 0;
+
+        const totalKioskosUnicos = tipoReporte === 'corteDiario' ? new Set(reportData.map(r => r.kiosko).filter(Boolean)).size : 0;
 
         return (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -390,6 +414,27 @@ const Reportes: React.FC = () => {
             {/* Tarjetas Informativas de Gran Total a la derecha */}
             {esReporteConsumo && reportData.length > 0 && (
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {tipoReporte === 'corteDiario' && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.75rem', 
+                    background: '#f0fdf4', 
+                    border: '1px solid #86efac', 
+                    padding: '0.5rem 1rem', 
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ background: '#16a34a', color: 'white', padding: '0.45rem', borderRadius: '6px', display: 'flex' }}>
+                      <Package size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Kioskos Atendidos</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#166534' }}>{totalKioskosUnicos} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: '#15803d' }}>kioskos</span></div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -404,7 +449,7 @@ const Reportes: React.FC = () => {
                     <Package size={20} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: '#991b1b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total ATB Consumidos</div>
+                    <div style={{ fontSize: '0.7rem', color: '#991b1b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total ATB Instalados</div>
                     <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#7f1d1d' }}>{totalATB} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: '#991b1b' }}>rollos</span></div>
                   </div>
                 </div>
@@ -423,7 +468,7 @@ const Reportes: React.FC = () => {
                     <Package size={20} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total BTP Consumidos</div>
+                    <div style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total BTP Instalados</div>
                     <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#78350f' }}>{totalBTP} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: '#92400e' }}>rollos</span></div>
                   </div>
                 </div>

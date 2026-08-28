@@ -229,3 +229,38 @@ export const getReporteIncidentes = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al generar reporte de incidentes' });
   }
 };
+
+export const getReporteCorteDiarioKioskos = async (req: Request, res: Response) => {
+  try {
+    const { fechaInicio, fechaFin, areaId, usuarioId } = req.query;
+
+    const where: any = {};
+    aplicarFiltroFechas(where, 'fechaAsignacion', fechaInicio, fechaFin);
+
+    if (areaId) {
+      where.periferico = { areaId };
+    }
+    if (usuarioId) {
+      where.usuarioId = usuarioId;
+    }
+
+    const asignaciones = await prisma.asignacionPeriferico.findMany({
+      where,
+      include: {
+        tipoPapel: true,
+        periferico: {
+          include: {
+            area: true,
+          },
+        },
+        usuario: true,
+      },
+      orderBy: { fechaAsignacion: 'desc' },
+    });
+
+    res.json(asignaciones);
+  } catch (error) {
+    console.error('Error en getReporteCorteDiarioKioskos:', error);
+    res.status(500).json({ error: 'Error al generar el reporte de corte diario' });
+  }
+};

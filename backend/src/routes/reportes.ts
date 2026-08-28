@@ -7,7 +7,8 @@ import {
   getReporteConsumoAlmacen,
   getReporteMovimientosIngeniero,
   getReporteKioskosAbastecidos,
-  getReporteIncidentes
+  getReporteIncidentes,
+  getReporteCorteDiarioKioskos
 } from '../controllers/reportes';
 
 const router = Router();
@@ -23,5 +24,6 @@ router.get('/consumo-almacen', getReporteConsumoAlmacen);
 router.get('/movimientos-ingeniero', getReporteMovimientosIngeniero);
 router.get('/kioskos-abastecidos', getReporteKioskosAbastecidos);
 router.get('/incidentes', getReporteIncidentes);
+router.get('/corte-diario-kioskos', getReporteCorteDiarioKioskos);
 
 export default router;

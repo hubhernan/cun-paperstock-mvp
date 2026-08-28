@@ -44,3 +44,8 @@ export const getReporteIncidentes = async (filters: ReporteFilters) => {
   const { data } = await api.get('/reportes/incidentes', { params: filters });
   return data;
 };
+
+export const getReporteCorteDiarioKioskos = async (filters: ReporteFilters) => {
+  const { data } = await api.get('/reportes/corte-diario-kioskos', { params: filters });
+  return data;
+};
