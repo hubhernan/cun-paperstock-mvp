@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, FileSpreadsheet, Search, Eraser } from 'lucide-react';
+import { FileText, FileSpreadsheet, Search, Eraser, Package } from 'lucide-react';
 import { 
   getReporteMovimientos, 
   getReporteStockValor, 
@@ -304,26 +304,86 @@ const Reportes: React.FC = () => {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-        <button 
-          className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          onClick={handleGenerate}
-          disabled={loading}
-        >
-          <Search size={18} />
-          {loading ? 'Generando...' : 'Generar Reporte'}
-        </button>
-        <button 
-          className="btn"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#e2e8f0', color: '#334155' }}
-          onClick={handleClear}
-          disabled={loading || reportData.length === 0}
-        >
-          <Eraser size={18} />
-          Limpiar
-        </button>
-      </div>
+      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área */}
+      {(() => {
+        const totalATB = tipoReporte === 'consumoArea' ? reportData.reduce((acc, row) => {
+          const cod = (row.codigoPapel || '').toUpperCase();
+          return cod.includes('ATB') ? acc + (Number(row.cantidad) || 0) : acc;
+        }, 0) : 0;
+
+        const totalBTP = tipoReporte === 'consumoArea' ? reportData.reduce((acc, row) => {
+          const cod = (row.codigoPapel || '').toUpperCase();
+          return cod.includes('BTP') ? acc + (Number(row.cantidad) || 0) : acc;
+        }, 0) : 0;
+
+        return (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={handleGenerate}
+                disabled={loading}
+              >
+                <Search size={18} />
+                {loading ? 'Generando...' : 'Generar Reporte'}
+              </button>
+              <button 
+                className="btn"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#e2e8f0', color: '#334155' }}
+                onClick={handleClear}
+                disabled={loading || reportData.length === 0}
+              >
+                <Eraser size={18} />
+                Limpiar
+              </button>
+            </div>
+
+            {/* Tarjetas Informativas de Gran Total a la derecha */}
+            {tipoReporte === 'consumoArea' && reportData.length > 0 && (
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem', 
+                  background: '#fef2f2', 
+                  border: '1px solid #fca5a5', 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ background: '#ef4444', color: 'white', padding: '0.45rem', borderRadius: '6px', display: 'flex' }}>
+                    <Package size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: '#991b1b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total ATB Consumidos</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#7f1d1d' }}>{totalATB} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: '#991b1b' }}>rollos</span></div>
+                  </div>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem', 
+                  background: '#fffbe6', 
+                  border: '1px solid #fde68a', 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ background: '#f59e0b', color: 'white', padding: '0.45rem', borderRadius: '6px', display: 'flex' }}>
+                    <Package size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total BTP Consumidos</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#78350f' }}>{totalBTP} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: '#92400e' }}>rollos</span></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {reportData.length > 0 && (
         <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
