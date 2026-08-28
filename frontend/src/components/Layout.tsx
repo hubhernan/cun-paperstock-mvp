@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Package, Home, BarChart2, Users, LogOut, Map, ArrowRightLeft, FileText, Bell, X, CheckCircle, Layers, AlertTriangle } from 'lucide-react';
+import { Package, Home, BarChart2, Users, LogOut, Map, ArrowRightLeft, FileText, Bell, X, CheckCircle, Layers, AlertTriangle, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAlerts } from '../context/AlertContext';
 import { format } from 'date-fns';
@@ -9,16 +9,36 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { alertas, marcarComoLeida, notificacionActiva, cerrarNotificacion, refrescarAlertas } = useAlerts();
-  const [showDropdown, setShowDropdown] = React.useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Auto-cerrar sidebar en móvil al navegar
+  React.useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="app-container">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <Package className="text-white" size={24} />
-          CUN PaperStock
+      {/* Backdrop overlay para pantallas móviles */}
+      <div 
+        className={`sidebar-overlay ${mobileSidebarOpen ? 'active' : ''}`} 
+        onClick={() => setMobileSidebarOpen(false)} 
+      />
+
+      <aside className={`sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Package className="text-white" size={24} />
+            <span>CUN PaperStock</span>
+          </div>
+          <button 
+            className="md:hidden text-white/70 hover:text-white bg-transparent border-none cursor-pointer p-1"
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{ display: 'none' }}
+          >
+            <X size={20} />
+          </button>
         </div>
         <nav className="sidebar-nav">
           <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
@@ -87,7 +107,19 @@ const Layout: React.FC = () => {
 
       <main className="main-content">
         <header className="topbar">
-          <h2 className="text-lg font-semibold m-0">Aeropuerto Internacional de Cancún</h2>
+          <div className="flex items-center gap-3">
+            <button 
+              className="p-2 text-gray-600 hover:text-gray-900 bg-transparent border-none cursor-pointer rounded-lg hover:bg-gray-100 flex items-center justify-center"
+              style={{ display: 'flex' }}
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              title="Abrir Menú"
+            >
+              <Menu size={22} />
+            </button>
+            <h2 className="text-lg font-semibold m-0" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Aeropuerto Internacional de Cancún
+            </h2>
+          </div>
         </header>
         <div className="page-content relative">
           {notificacionActiva && (
