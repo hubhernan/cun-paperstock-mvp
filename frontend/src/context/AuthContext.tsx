@@ -55,10 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error logging out on backend', error);
     }
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.clear();
+    localStorage.clear();
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
