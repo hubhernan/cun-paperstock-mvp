@@ -88,59 +88,6 @@ const Layout: React.FC = () => {
       <main className="main-content">
         <header className="topbar">
           <h2 className="text-lg font-semibold m-0">Aeropuerto Internacional de Cancún</h2>
-          <div className="flex items-center gap-4 relative">
-            <div className="relative">
-              <button 
-                className="btn btn-icon p-2 text-gray-300 hover:text-white relative bg-transparent border-none cursor-pointer"
-                onClick={() => {
-                  refrescarAlertas();
-                  setShowDropdown(!showDropdown);
-                }}
-              >
-                  <Bell size={24} />
-                  {alertas.length > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-                      {alertas.length}
-                    </span>
-                  )}
-                </button>
-
-                {showDropdown && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-100 rounded-xl shadow-xl z-50 dropdown-menu" style={{ color: 'var(--color-text)' }}>
-                    <div className="p-4 border-b border-gray-100 font-semibold flex justify-between items-center text-sm uppercase tracking-wider text-gray-500">
-                      Notificaciones
-                      <button className="text-gray-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-colors" onClick={() => setShowDropdown(false)}>
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {alertas.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400 text-sm">
-                          No hay alertas nuevas.
-                        </div>
-                      ) : (
-                        alertas.map(alerta => (
-                          <div key={alerta.id} className="p-4 border-b border-gray-50 hover:bg-slate-50 flex flex-col gap-1 transition-colors">
-                            <span className="text-sm font-medium">{alerta.mensaje}</span>
-                            <div className="flex justify-between items-center mt-2">
-                              <span className="text-xs text-gray-400">
-                                {format(new Date(alerta.fecha), 'dd/MM HH:mm')}
-                              </span>
-                              <button 
-                                onClick={() => marcarComoLeida(alerta.id)}
-                                className="text-blue-500 hover:text-blue-600 text-xs flex items-center gap-1 bg-transparent border-none cursor-pointer p-0 font-medium"
-                              >
-                                <CheckCircle size={14} /> Marcar Leída
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-          </div>
         </header>
         <div className="page-content relative">
           {notificacionActiva && (
