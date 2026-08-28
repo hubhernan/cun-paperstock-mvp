@@ -304,9 +304,9 @@ const Reportes: React.FC = () => {
         )}
       </div>
 
-      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área y Consumo por Almacén */}
+      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área, Consumo por Almacén y Movimientos por Ingeniero */}
       {(() => {
-        const esReporteConsumo = tipoReporte === 'consumoArea' || tipoReporte === 'consumoAlmacen';
+        const esReporteConsumo = tipoReporte === 'consumoArea' || tipoReporte === 'consumoAlmacen' || tipoReporte === 'movimientosIngeniero';
 
         const totalATB = esReporteConsumo ? reportData.reduce((acc, row) => {
           const cod = (row.codigoPapel || '').toUpperCase();
