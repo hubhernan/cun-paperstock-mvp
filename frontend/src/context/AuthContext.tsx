@@ -22,11 +22,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
     return storedUser ? JSON.parse(storedUser) : null;
   });
   const [token, setToken] = useState<string | null>(() => {
-    const storedToken = localStorage.getItem('token');
+    const storedToken = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (storedToken) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
     }
@@ -35,10 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Las variables ya se inicializaron síncronamente, pero por si acaso
+    // Las variables ya se inicializaron síncronamente
   }, []);
 
   const login = (newToken: string, newUser: User) => {
+    sessionStorage.setItem('token', newToken);
+    sessionStorage.setItem('user', JSON.stringify(newUser));
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
@@ -53,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error logging out on backend', error);
     }
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);

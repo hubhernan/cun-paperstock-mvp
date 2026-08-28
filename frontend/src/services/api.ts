@@ -4,10 +4,10 @@ const api = axios.create({
   baseURL: ((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api',
 });
 
-// Interceptor para agregar el token si es necesario
+// Interceptor para agregar el token si es necesario (soporta pestañas independientes con sessionStorage)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
