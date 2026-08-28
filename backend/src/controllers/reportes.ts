@@ -169,11 +169,12 @@ export const getReporteConsumoAlmacen = async (req: Request, res: Response) => {
 
 export const getReporteMovimientosIngeniero = async (req: Request, res: Response) => {
   try {
-    const { fechaInicio, fechaFin, usuarioId } = req.query;
+    const { fechaInicio, fechaFin, usuarioId, tipoMovimiento } = req.query;
     const where: any = {};
     aplicarFiltroFechas(where, 'fechaMovimiento', fechaInicio, fechaFin);
 
     if (usuarioId) where.usuarioId = usuarioId;
+    if (tipoMovimiento) where.tipoMovimiento = tipoMovimiento;
 
     const movimientos = await prisma.movimientoInventario.findMany({
       where,

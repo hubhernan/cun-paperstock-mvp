@@ -23,6 +23,7 @@ const Reportes: React.FC = () => {
   const [areaId, setAreaId] = useState('');
   const [almacenId, setAlmacenId] = useState('');
   const [usuarioId, setUsuarioId] = useState('');
+  const [tipoMovimientoFiltro, setTipoMovimientoFiltro] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -67,7 +68,8 @@ const Reportes: React.FC = () => {
         fechaFin,
         ...(areaId && { areaId }),
         ...(almacenId && { almacenId }),
-        ...(usuarioId && { usuarioId })
+        ...(usuarioId && { usuarioId }),
+        ...(tipoMovimientoFiltro && { tipoMovimiento: tipoMovimientoFiltro })
       };
 
       if (tipoReporte === 'movimientos') {
@@ -225,6 +227,7 @@ const Reportes: React.FC = () => {
     setAreaId('');
     setAlmacenId('');
     setUsuarioId('');
+    setTipoMovimientoFiltro('');
     setFechaInicio('');
     setFechaFin('');
   };
@@ -325,6 +328,23 @@ const Reportes: React.FC = () => {
               {usuarios.map(u => (
                 <option key={u.id} value={u.id}>{u.nombre} ({u.email})</option>
               ))}
+            </select>
+          </div>
+        )}
+
+        {(tipoReporte === 'movimientos' || tipoReporte === 'movimientosIngeniero' || tipoReporte === 'consumoAlmacen') && (
+          <div>
+            <label className="form-label">Tipo de Movimiento</label>
+            <select 
+              value={tipoMovimientoFiltro} 
+              onChange={(e) => setTipoMovimientoFiltro(e.target.value)}
+              className="form-input"
+            >
+              <option value="">TODOS</option>
+              <option value="ENTRADA">ENTRADA</option>
+              <option value="SALIDA">SALIDA</option>
+              <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+              <option value="MERMA">MERMA</option>
             </select>
           </div>
         )}
