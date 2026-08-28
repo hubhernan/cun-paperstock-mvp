@@ -8,6 +8,9 @@ export interface AuthRequest extends Request {
   user?: any;
 }
 
+// Mapa en memoria para rastrear presencia en tiempo real (Heartbeat de peticiones HTTP)
+export const userLastSeenMap = new Map<string, Date>();
+
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -25,6 +28,9 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
       if (!user || !user.activo) {
         return res.status(403).json({ success: false, message: 'Usuario no encontrado o inactivo' });
       }
+
+      // Actualizar presencia en tiempo real (Heartbeat)
+      userLastSeenMap.set(user.id, new Date());
       req.user = user;
       next();
     } catch (error) {

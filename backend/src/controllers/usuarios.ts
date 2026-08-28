@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+import { userLastSeenMap } from '../middleware/auth';
+
 export const getUsuarios = async (req: Request, res: Response) => {
   try {
     const usuarios = await prisma.usuario.findMany({
@@ -26,7 +28,9 @@ export const getUsuarios = async (req: Request, res: Response) => {
       orderBy: { nombre: 'asc' }
     });
 
-    // Obtener la última actividad de cada usuario desde la bitácora de auditoría
+    const ahora = new Date().getTime();
+
+    // Obtener la última actividad de cada usuario (Heartbeat en memoria + Bitácora de auditoría)
     const usuariosConPresencia = await Promise.all(
       usuarios.map(async (usr) => {
         const ultimaAuditoria = await prisma.auditoriaAcciones.findFirst({
@@ -35,18 +39,23 @@ export const getUsuarios = async (req: Request, res: Response) => {
           select: { fecha: true, accion: true }
         });
 
+        const lastSeenDate = userLastSeenMap.get(usr.id);
+        const lastSeenMs = lastSeenDate ? lastSeenDate.getTime() : 0;
+        const auditMs = ultimaAuditoria ? new Date(ultimaAuditoria.fecha).getTime() : 0;
+
+        let fechaUltimaActividad = lastSeenMs > auditMs ? lastSeenDate : (ultimaAuditoria ? ultimaAuditoria.fecha : null);
         let enLinea = false;
-        if (ultimaAuditoria) {
-          // Si la última actividad fue hace menos de 2 horas o la última acción fue LOGIN
-          const diffMinutes = (new Date().getTime() - new Date(ultimaAuditoria.fecha).getTime()) / (1000 * 60);
-          if (diffMinutes < 120 && ultimaAuditoria.accion !== 'LOGOUT') {
-            enLinea = true;
-          }
+
+        // Se considera En Línea si realizó una petición HTTP en los últimos 3 minutos o si inició sesión recientemente (sin LOGOUT)
+        if (lastSeenMs > 0 && (ahora - lastSeenMs) < 3 * 60 * 1000) {
+          enLinea = true;
+        } else if (ultimaAuditoria && (ahora - auditMs) < 5 * 60 * 1000 && ultimaAuditoria.accion !== 'LOGOUT') {
+          enLinea = true;
         }
 
         return {
           ...usr,
-          ultimaActividad: ultimaAuditoria ? ultimaAuditoria.fecha : null,
+          ultimaActividad: fechaUltimaActividad,
           enLinea
         };
       })

@@ -94,6 +94,11 @@ const Usuarios: React.FC = () => {
 
   useEffect(() => {
     fetchDatos();
+    const interval = setInterval(() => {
+      fetchDatos();
+    }, 4000); // Polling automático cada 4 segundos para actualizar presencia en línea en tiempo real
+
+    return () => clearInterval(interval);
   }, []);
 
   // Filtrado dinámico

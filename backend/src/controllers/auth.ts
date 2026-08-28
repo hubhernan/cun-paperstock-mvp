@@ -51,9 +51,12 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+import { userLastSeenMap } from '../middleware/auth';
+
 export const logout = async (req: Request, res: Response) => {
   try {
     const usuarioId = (req as any).user.id;
+    userLastSeenMap.delete(usuarioId);
     await registrarAuditoria(usuarioId, 'LOGOUT', 'Usuario', usuarioId, 'Cierre de sesión exitoso', req.ip);
     res.json({ success: true, message: 'Sesión cerrada exitosamente' });
   } catch (error) {
