@@ -304,14 +304,16 @@ const Reportes: React.FC = () => {
         )}
       </div>
 
-      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área */}
+      {/* Cálculo de Gran Total ATB y BTP para Consumo por Área y Consumo por Almacén */}
       {(() => {
-        const totalATB = tipoReporte === 'consumoArea' ? reportData.reduce((acc, row) => {
+        const esReporteConsumo = tipoReporte === 'consumoArea' || tipoReporte === 'consumoAlmacen';
+
+        const totalATB = esReporteConsumo ? reportData.reduce((acc, row) => {
           const cod = (row.codigoPapel || '').toUpperCase();
           return cod.includes('ATB') ? acc + (Number(row.cantidad) || 0) : acc;
         }, 0) : 0;
 
-        const totalBTP = tipoReporte === 'consumoArea' ? reportData.reduce((acc, row) => {
+        const totalBTP = esReporteConsumo ? reportData.reduce((acc, row) => {
           const cod = (row.codigoPapel || '').toUpperCase();
           return cod.includes('BTP') ? acc + (Number(row.cantidad) || 0) : acc;
         }, 0) : 0;
@@ -340,7 +342,7 @@ const Reportes: React.FC = () => {
             </div>
 
             {/* Tarjetas Informativas de Gran Total a la derecha */}
-            {tipoReporte === 'consumoArea' && reportData.length > 0 && (
+            {esReporteConsumo && reportData.length > 0 && (
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ 
                   display: 'flex', 
