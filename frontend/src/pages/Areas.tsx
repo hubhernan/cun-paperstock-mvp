@@ -195,6 +195,10 @@ const Areas: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleRegisterAction = async (e: React.FormEvent) => {
