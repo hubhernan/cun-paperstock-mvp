@@ -538,28 +538,10 @@ const Areas: React.FC = () => {
                            </div>
                         </div>
 
-                        {/* Reversión de Última Acción en Kiosko */}
-                        {p.IntervencionKiosko && p.IntervencionKiosko.length > 0 && (
-                          <div style={{ marginTop: '0.65rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: '#f1f5f9', padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                            <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }} title={p.IntervencionKiosko[0].accion}>
-                              Última: <strong>{p.IntervencionKiosko[0].accion}</strong>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRevertirIntervencion(p.IntervencionKiosko![0].id)}
-                              style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
-                              title="Deshacer / Revertir esta acción y devolver el rollo al almacén"
-                            >
-                              <RotateCcw size={12} color="#ef4444" />
-                              Revertir
-                            </button>
-                          </div>
-                        )}
-
                         {/* Botón de Intervención */}
                         <button 
                           className="btn btn-secondary w-full" 
-                          style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
+                          style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
                           onClick={() => handleOpenModal(p, area)}
                         >
                           <Wrench size={16} />
@@ -576,52 +558,65 @@ const Areas: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Toast Emergente para Deshacer Inmediato */}
+      {/* Floating Toast Emergente Centrado en Pantalla para Deshacer Inmediato */}
       {toastData && (
         <div style={{
           position: 'fixed',
           bottom: '24px',
-          right: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 9999,
+          width: '90%',
+          maxWidth: '480px',
           background: '#0f172a',
           color: 'white',
           padding: '0.85rem 1.25rem',
-          borderRadius: '12px',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+          borderRadius: '14px',
+          boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem',
-          animation: 'fadeIn 0.3s ease-out'
+          justify: 'space-between',
+          gap: '0.75rem',
+          animation: 'fadeIn 0.3s ease-out',
+          border: '1px solid #334155'
         }}>
-          <CheckCircle2 color="#10b981" size={22} />
-          <div>
-            <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>{toastData.accion} Registrada</div>
-            <div style={{ fontSize: '0.775rem', color: '#94a3b8' }}>Kiosko: {toastData.kioskoCodigo}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            <CheckCircle2 color="#10b981" size={22} style={{ flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {toastData.accion} Registrada
+              </div>
+              <div style={{ fontSize: '0.775rem', color: '#94a3b8' }}>Kiosko: {toastData.kioskoCodigo}</div>
+            </div>
           </div>
-          <button
-            onClick={() => handleRevertirIntervencion(toastData.intervencionId)}
-            style={{
-              background: '#ef4444',
-              color: 'white',
-              border: 'none',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem'
-            }}
-          >
-            <RotateCcw size={14} color="white" />
-            Deshacer / Revertir
-          </button>
-          <X 
-            size={18} 
-            style={{ cursor: 'pointer', opacity: 0.7, marginLeft: '0.25rem' }} 
-            onClick={() => setToastData(null)} 
-          />
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+            <button
+              onClick={() => handleRevertirIntervencion(toastData.intervencionId)}
+              style={{
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                padding: '0.45rem 0.85rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)'
+              }}
+            >
+              <RotateCcw size={14} color="white" />
+              Deshacer / Revertir
+            </button>
+            <X 
+              size={18} 
+              style={{ cursor: 'pointer', opacity: 0.7 }} 
+              onClick={() => setToastData(null)} 
+            />
+          </div>
         </div>
       )}
 
