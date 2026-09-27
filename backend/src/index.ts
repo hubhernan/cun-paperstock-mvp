@@ -18,6 +18,7 @@ import incidentesRoutes from './routes/incidentes';
 import alertasRoutes from './routes/alertas';
 import usuariosRoutes from './routes/usuarios';
 import intervencionesRoutes from './routes/intervenciones';
+import cortesDiariosRoutes from './routes/cortesDiarios';
 import { startAlertService } from './services/AlertService';
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/incidentes', incidentesRoutes);
 app.use('/api/alertas', alertasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/intervenciones', intervencionesRoutes);
+app.use('/api/cortes-diarios', cortesDiariosRoutes);
 
 // Servir el frontend en producción (archivos estáticos)
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');

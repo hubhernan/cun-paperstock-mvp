@@ -49,3 +49,8 @@ export const getReporteCorteDiarioKioskos = async (filters: ReporteFilters) => {
   const { data } = await api.get('/reportes/corte-diario-kioskos', { params: filters });
   return data;
 };
+
+export const getReporteCorteDiarioStock = async (filters: ReporteFilters) => {
+  const { data } = await api.get('/cortes-diarios/reporte', { params: filters });
+  return data;
+};

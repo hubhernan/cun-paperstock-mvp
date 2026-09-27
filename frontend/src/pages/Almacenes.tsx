@@ -13,7 +13,9 @@ import {
   ArrowDownToLine, 
   ArrowUpFromLine, 
   AlertTriangle,
-  History
+  History,
+  Layers,
+  Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -30,6 +32,15 @@ interface Almacen {
   sugerencia?: string;
 }
 
+interface CorteDiarioItem {
+  id: string;
+  fechaCorte: string;
+  totalStock: number;
+  totalAtb: number;
+  totalBtp: number;
+  creadoPor?: string;
+}
+
 interface Movimiento {
   id: string;
   tipoMovimiento: string;
@@ -44,6 +55,7 @@ interface Movimiento {
 
 const Almacenes: React.FC = () => {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
+  const [cortesDiarios, setCortesDiarios] = useState<CorteDiarioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAlmacen, setSelectedAlmacen] = useState<Almacen | null>(null);
   const [stockDetalle, setStockDetalle] = useState<any[]>([]);
@@ -76,6 +88,17 @@ const Almacenes: React.FC = () => {
     }
   };
 
+  const fetchCortesDiarios = async () => {
+    try {
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/cortes-diarios/ultimos3');
+      if (response.data.success) {
+        setCortesDiarios(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching cortes diarios', error);
+    }
+  };
+
   const fetchMovimientos = async () => {
     try {
       setLoadingMovimientos(true);
@@ -92,6 +115,7 @@ const Almacenes: React.FC = () => {
 
   useEffect(() => {
     fetchAlmacenes();
+    fetchCortesDiarios();
     fetchMovimientos();
   }, []);
 
@@ -227,74 +251,167 @@ const Almacenes: React.FC = () => {
         </button>
       </div>
 
-      {/* Grid de Tarjetas de Almacenes */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        {loading ? (
-          <div>Cargando almacenes...</div>
-        ) : almacenes.length === 0 ? (
-          <div className="card w-full">No hay almacenes registrados.</div>
-        ) : (
-          almacenes.map(almacen => (
-            <div key={almacen.id} className="card relative" style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: almacen.proveedor === 'SITA' ? '3px solid #3b82f6' : (almacen.proveedor === 'ASUR' ? '3px solid #10b981' : '3px solid var(--color-primary)') }}>
-              {almacen.proveedor && (
-                <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded ${almacen.proveedor === 'SITA' ? 'bg-blue-900/50 text-blue-400 border border-blue-700/50' : (almacen.proveedor === 'ASUR' ? 'bg-green-900/50 text-green-400 border border-green-700/50' : 'bg-gray-800/50 text-gray-300 border border-gray-600/50')}`}>
-                  {almacen.proveedor}
-                </div>
-              )}
-              <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '4rem' }}>{almacen.nombre}</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                <MapPin size={16} />
-                {almacen.ubicacion}
-              </div>
+      {/* Seccion Principal: Almacenes a la Izquierda y Cortes Diarios a la Derecha */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+        
+        {/* Lado Izquierdo: Tarjetas de los 3 Almacenes */}
+        <div>
+          <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Package size={20} color="var(--color-primary)" />
+            Bodegas de Almacenamiento
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            {loading ? (
+              <div>Cargando almacenes...</div>
+            ) : almacenes.length === 0 ? (
+              <div className="card w-full">No hay almacenes registrados.</div>
+            ) : (
+              almacenes.map(almacen => (
+                <div key={almacen.id} className="card relative" style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: almacen.proveedor === 'SITA' ? '3px solid #3b82f6' : (almacen.proveedor === 'ASUR' ? '3px solid #10b981' : '3px solid var(--color-primary)') }}>
+                  {almacen.proveedor && (
+                    <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded ${almacen.proveedor === 'SITA' ? 'bg-blue-900/50 text-blue-400 border border-blue-700/50' : (almacen.proveedor === 'ASUR' ? 'bg-green-900/50 text-green-400 border border-green-700/50' : 'bg-gray-800/50 text-gray-300 border border-gray-600/50')}`}>
+                      {almacen.proveedor}
+                    </div>
+                  )}
+                  <h3 style={{ margin: '0 0 0.5rem 0', paddingRight: '4rem' }}>{almacen.nombre}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                    <MapPin size={16} />
+                    {almacen.ubicacion}
+                  </div>
 
-              {/* Status Visual y Cobertura */}
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', background: '#f8fafc', borderLeft: almacen.estadoVisual === 'ROJO' ? '4px solid var(--color-danger)' : almacen.estadoVisual === 'AMBAR' ? '4px solid var(--color-warning)' : '4px solid var(--color-success)' }}>
-                  <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>ESTADO OPERATIVO</p>
-                  <strong style={{ color: almacen.estadoVisual === 'ROJO' ? 'var(--color-danger)' : almacen.estadoVisual === 'AMBAR' ? 'var(--color-warning)' : 'var(--color-success)' }}>
-                    {almacen.estadoVisual || 'VERDE'}
-                  </strong>
-                </div>
-                <div style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', background: '#f8fafc', borderLeft: '4px solid var(--color-primary)' }}>
-                  <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>COBERTURA ESTIMADA</p>
-                  <strong>{almacen.diasCobertura ?? '--'} días</strong>
-                </div>
-              </div>
+                  {/* Status Visual y Cobertura */}
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', background: '#f8fafc', borderLeft: almacen.estadoVisual === 'ROJO' ? '4px solid var(--color-danger)' : almacen.estadoVisual === 'AMBAR' ? '4px solid var(--color-warning)' : '4px solid var(--color-success)' }}>
+                      <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>ESTADO OPERATIVO</p>
+                      <strong style={{ color: almacen.estadoVisual === 'ROJO' ? 'var(--color-danger)' : almacen.estadoVisual === 'AMBAR' ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                        {almacen.estadoVisual || 'VERDE'}
+                      </strong>
+                    </div>
+                    <div style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', background: '#f8fafc', borderLeft: '4px solid var(--color-primary)' }}>
+                      <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>COBERTURA ESTIMADA</p>
+                      <strong>{almacen.diasCobertura ?? '--'} días</strong>
+                    </div>
+                  </div>
 
-              {/* Stocks Actuales */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                <div style={{ background: '#e0e7ff', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '16px', fontSize: '0.875rem', fontWeight: 500 }}>
-                  ATB: {almacen.stockATB || 0}
-                </div>
-                <div style={{ background: '#fef3c7', color: 'var(--color-warning)', padding: '0.25rem 0.75rem', borderRadius: '16px', fontSize: '0.875rem', fontWeight: 500 }}>
-                  BTP: {almacen.stockBTP || 0}
-                </div>
-              </div>
+                  {/* Stocks Actuales */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <div style={{ background: '#e0e7ff', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '16px', fontSize: '0.875rem', fontWeight: 500 }}>
+                      ATB: {almacen.stockATB || 0}
+                    </div>
+                    <div style={{ background: '#fef3c7', color: 'var(--color-warning)', padding: '0.25rem 0.75rem', borderRadius: '16px', fontSize: '0.875rem', fontWeight: 500 }}>
+                      BTP: {almacen.stockBTP || 0}
+                    </div>
+                  </div>
 
-              {/* Sugerencias de Reabastecimiento */}
-              {almacen.sugerencia && (
-                <div style={{ background: '#fee2e2', border: '1px dashed var(--color-danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                  <strong style={{ color: 'var(--color-danger)', display: 'block', marginBottom: '0.25rem' }}>Sugerencia IA:</strong>
-                  {almacen.sugerencia}
-                  <button className="btn btn-primary" style={{ marginTop: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', width: '100%', background: 'var(--color-danger)' }}>
-                    Aprobar Transferencia
-                  </button>
-                </div>
-              )}
+                  {/* Sugerencias de Reabastecimiento */}
+                  {almacen.sugerencia && (
+                    <div style={{ background: '#fee2e2', border: '1px dashed var(--color-danger)', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                      <strong style={{ color: 'var(--color-danger)', display: 'block', marginBottom: '0.25rem' }}>Sugerencia IA:</strong>
+                      {almacen.sugerencia}
+                      <button className="btn btn-primary" style={{ marginTop: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', width: '100%', background: 'var(--color-danger)' }}>
+                        Aprobar Transferencia
+                      </button>
+                    </div>
+                  )}
 
-              <div style={{ marginTop: 'auto' }}>
-                <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem' }}><strong>Capacidad:</strong> {almacen.capacidad || 'N/A'}</p>
-                <button 
-                  className="btn btn-primary" 
-                  style={{ width: '100%', background: 'var(--color-secondary)' }}
-                  onClick={() => handleVerStock(almacen)}
+                  <div style={{ marginTop: 'auto' }}>
+                    <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem' }}><strong>Capacidad:</strong> {almacen.capacidad || 'N/A'}</p>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ width: '100%', background: 'var(--color-secondary)' }}
+                      onClick={() => handleVerStock(almacen)}
+                    >
+                      Ver Stock a Detalle
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Lado Derecho: Tarjetas Informativas de Cortes Diarios a las 23:50 hrs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Layers size={20} color="#10b981" />
+            Cortes Diarios de Stock (23:50 hrs)
+          </h3>
+          <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.825rem', color: 'var(--color-text-muted)' }}>
+            Foto del inventario total (rollos) tomada diariamente al cierre del día (23:50 hrs).
+          </p>
+
+          {cortesDiarios.length === 0 ? (
+            <div className="card">Sin datos de corte diario.</div>
+          ) : (
+            cortesDiarios.map((corte, idx) => {
+              const fechaFormatted = format(new Date(corte.fechaCorte), 'dd/MM/yyyy');
+              return (
+                <div 
+                  key={corte.id || idx} 
+                  className="card" 
+                  style={{ 
+                    padding: '1.25rem', 
+                    borderRadius: '16px', 
+                    background: '#ffffff', 
+                    border: '1px solid #e2e8f0', 
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)', 
+                    position: 'relative',
+                    marginBottom: 0
+                  }}
                 >
-                  Ver Stock a Detalle
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                    {/* Contenedor Verde Esmeralda Suave con Icono de Capas */}
+                    <div style={{ 
+                      width: '48px', 
+                      height: '48px', 
+                      borderRadius: '12px', 
+                      background: '#ecfdf5', 
+                      border: '1px solid #a7f3d0',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justify: 'center', 
+                      flexShrink: 0 
+                    }}>
+                      <Layers size={24} color="#10b981" />
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Stock Total (Uds)</span>
+                        <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Clock size={12} color="#64748b" />
+                          {fechaFormatted} - 23:50 hrs
+                        </span>
+                      </div>
+                      
+                      {/* Gran Total Destacado */}
+                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: '0.6rem' }}>
+                        {corte.totalStock}
+                      </div>
+
+                      {/* Chip Amarillo Neón Resaltado: ATB: XX | BTP: YY */}
+                      <div style={{ 
+                        display: 'inline-block', 
+                        background: '#facc15', 
+                        color: '#14532d', 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '6px', 
+                        fontSize: '0.875rem', 
+                        fontWeight: 800, 
+                        letterSpacing: '0.3px',
+                        boxShadow: '0 2px 4px rgba(250, 204, 21, 0.3)'
+                      }}>
+                        <span style={{ color: '#166534' }}>ATB: {corte.totalAtb}</span>
+                        <span style={{ color: '#15803d', margin: '0 0.4rem' }}>|</span>
+                        <span style={{ color: '#166534' }}>BTP: {corte.totalBtp}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* SECCIÓN INFERIOR: Réplica Informativa de los Últimos 15 Movimientos de Inventario */}

@@ -8,7 +8,8 @@ import {
   getReporteMovimientosIngeniero,
   getReporteKioskosAbastecidos,
   getReporteIncidentes,
-  getReporteCorteDiarioKioskos
+  getReporteCorteDiarioKioskos,
+  getReporteCorteDiarioStock
 } from '../services/reportesService';
 import { exportToExcel } from '../utils/exportUtils';
 import { format } from 'date-fns';
@@ -216,6 +217,24 @@ const Reportes: React.FC = () => {
           cantidad: d.cantidadAsignada,
           usuarioNombre: d.usuario?.nombre || ''
         }));
+      } else if (tipoReporte === 'corteDiarioStock') {
+        data = await getReporteCorteDiarioStock(filters);
+        title = 'Histórico de Cortes Diarios de Stock (23:50 hrs)';
+        fileName = 'reporte_cortes_diarios_stock';
+        columns = [
+          { header: 'Fecha de Corte', dataKey: 'fechaFormat' },
+          { header: 'Stock Total (Rollos)', dataKey: 'totalStock' },
+          { header: 'Total ATB', dataKey: 'totalAtb' },
+          { header: 'Total BTP', dataKey: 'totalBtp' },
+          { header: 'Generado Por', dataKey: 'creadoPor' }
+        ];
+        data = data.map((d: any) => ({
+          fechaFormat: format(new Date(d.fechaCorte), 'dd/MM/yyyy HH:mm') + ' hrs',
+          totalStock: d.totalStock,
+          totalAtb: d.totalAtb,
+          totalBtp: d.totalBtp,
+          creadoPor: d.creadoPor || 'SISTEMA_AUTO'
+        }));
       }
 
       if (data.length === 0) {
@@ -274,6 +293,7 @@ const Reportes: React.FC = () => {
           >
             <option value="movimientos">Historial de Movimientos</option>
             <option value="valorStock">Valor de Stock Actual</option>
+            <option value="corteDiarioStock">Histórico de Cortes Diarios de Stock (23:50 hrs)</option>
             <option value="corteDiario">Corte Diario de Kioskos (Papel Instalado 00:00 - 23:59)</option>
             <option value="consumoArea">Consumo por Área</option>
             <option value="consumoAlmacen">Consumo por Almacén</option>
