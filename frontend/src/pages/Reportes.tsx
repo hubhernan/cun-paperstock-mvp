@@ -320,11 +320,9 @@ const Reportes: React.FC = () => {
             className="form-input"
           >
             <option value="movimientos">Historial de Movimientos</option>
-            <option value="valorStock">Valor de Stock Actual</option>
             <option value="verificacionesStockOK">Histórico de Verificaciones de Stock OK (Firma y Conteo)</option>
             <option value="corteDiarioStock">Histórico de Cortes Diarios de Stock (23:50 hrs)</option>
             <option value="corteDiario">Corte Diario de Kioskos (Papel Instalado 00:00 - 23:59)</option>
-            <option value="consumoArea">Consumo por Área</option>
             <option value="consumoAlmacen">Consumo por Almacén</option>
             <option value="movimientosIngeniero">Movimientos por Ingeniero</option>
             <option value="kioskosAbastecidos">Kioskos Abastecidos</option>
@@ -355,7 +353,7 @@ const Reportes: React.FC = () => {
           </>
         )}
 
-        {(tipoReporte === 'consumoArea' || tipoReporte === 'corteDiario') && (
+        {tipoReporte === 'corteDiario' && (
           <div>
             <label className="form-label">Filtrar por Área</label>
             <select 
@@ -371,7 +369,7 @@ const Reportes: React.FC = () => {
           </div>
         )}
 
-        {tipoReporte === 'consumoAlmacen' && (
+        {(tipoReporte === 'consumoAlmacen' || tipoReporte === 'verificacionesStockOK') && (
           <div>
             <label className="form-label">Filtrar por Almacén</label>
             <select 
