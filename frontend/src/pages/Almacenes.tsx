@@ -252,15 +252,15 @@ const Almacenes: React.FC = () => {
       </div>
 
       {/* Seccion Principal: Almacenes a la Izquierda y Cortes Diarios a la Derecha */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
         
         {/* Lado Izquierdo: Tarjetas de los 3 Almacenes */}
-        <div>
+        <div style={{ flex: 1 }}>
           <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Package size={20} color="var(--color-primary)" />
             Bodegas de Almacenamiento
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
             {loading ? (
               <div>Cargando almacenes...</div>
             ) : almacenes.length === 0 ? (
@@ -330,14 +330,14 @@ const Almacenes: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Derecho: Tarjetas Informativas de Cortes Diarios a las 23:50 hrs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Lado Derecho: Tarjetas Informativas Compactas de Cortes Diarios a las 23:50 hrs */}
+        <div style={{ maxWidth: '380px', width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Layers size={20} color="#10b981" />
-            Cortes Diarios de Stock (23:50 hrs)
+            Cortes Diarios (23:50 hrs)
           </h3>
           <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.825rem', color: 'var(--color-text-muted)' }}>
-            Foto del inventario total (rollos) tomada diariamente al cierre del día (23:50 hrs).
+            Foto de stock total tomada al cierre del día (23:50 hrs).
           </p>
 
           {cortesDiarios.length === 0 ? (
@@ -350,21 +350,21 @@ const Almacenes: React.FC = () => {
                   key={corte.id || idx} 
                   className="card" 
                   style={{ 
-                    padding: '1.25rem', 
-                    borderRadius: '16px', 
+                    padding: '1rem 1.15rem', 
+                    borderRadius: '14px', 
                     background: '#ffffff', 
                     border: '1px solid #e2e8f0', 
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)', 
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)', 
                     position: 'relative',
                     marginBottom: 0
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
                     {/* Contenedor Verde Esmeralda Suave con Icono de Capas */}
                     <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      borderRadius: '12px', 
+                      width: '42px', 
+                      height: '42px', 
+                      borderRadius: '10px', 
                       background: '#ecfdf5', 
                       border: '1px solid #a7f3d0',
                       display: 'flex', 
@@ -372,38 +372,31 @@ const Almacenes: React.FC = () => {
                       justify: 'center', 
                       flexShrink: 0 
                     }}>
-                      <Layers size={24} color="#10b981" />
+                      <Layers size={22} color="#10b981" />
                     </div>
 
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Stock Total (Uds)</span>
-                        <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#334155', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Clock size={12} color="#64748b" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Stock Total (Uds)</span>
+                        <span style={{ fontSize: '0.725rem', background: '#f1f5f9', color: '#334155', padding: '0.15rem 0.45rem', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Clock size={11} color="#64748b" />
                           {fechaFormatted} - 23:50 hrs
                         </span>
                       </div>
                       
                       {/* Gran Total Destacado */}
-                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: '0.6rem' }}>
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: '0.5rem' }}>
                         {corte.totalStock}
                       </div>
 
-                      {/* Chip Amarillo Neón Resaltado: ATB: XX | BTP: YY */}
-                      <div style={{ 
-                        display: 'inline-block', 
-                        background: '#facc15', 
-                        color: '#14532d', 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '6px', 
-                        fontSize: '0.875rem', 
-                        fontWeight: 800, 
-                        letterSpacing: '0.3px',
-                        boxShadow: '0 2px 4px rgba(250, 204, 21, 0.3)'
-                      }}>
-                        <span style={{ color: '#166534' }}>ATB: {corte.totalAtb}</span>
-                        <span style={{ color: '#15803d', margin: '0 0.4rem' }}>|</span>
-                        <span style={{ color: '#166534' }}>BTP: {corte.totalBtp}</span>
+                      {/* Chips Azul (ATB) y Amarillo Ligero (BTP) */}
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{ background: '#e0e7ff', color: 'var(--color-primary)', padding: '0.2rem 0.65rem', borderRadius: '16px', fontSize: '0.8rem', fontWeight: 600 }}>
+                          ATB: {corte.totalAtb}
+                        </div>
+                        <div style={{ background: '#fef3c7', color: 'var(--color-warning)', padding: '0.2rem 0.65rem', borderRadius: '16px', fontSize: '0.8rem', fontWeight: 600 }}>
+                          BTP: {corte.totalBtp}
+                        </div>
                       </div>
                     </div>
                   </div>
