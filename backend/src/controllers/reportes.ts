@@ -7,7 +7,9 @@ const parseFechaInicio = (str: any): Date | undefined => {
   if (!str || str === '' || str === 'undefined' || str === 'null') return undefined;
   if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const parts = str.split('-').map(Number);
-    return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+    if (parts[0] !== undefined && parts[1] !== undefined && parts[2] !== undefined) {
+      return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+    }
   }
   const d = new Date(str);
   return isNaN(d.getTime()) ? undefined : d;
@@ -17,7 +19,9 @@ const parseFechaFin = (str: any): Date | undefined => {
   if (!str || str === '' || str === 'undefined' || str === 'null') return undefined;
   if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const parts = str.split('-').map(Number);
-    return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+    if (parts[0] !== undefined && parts[1] !== undefined && parts[2] !== undefined) {
+      return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+    }
   }
   const d = new Date(str);
   if (isNaN(d.getTime())) return undefined;

@@ -438,15 +438,17 @@ async function main() {
 
     // Login histórico
     const fechaLogin = new Date(fechaBase.getTime() + 7 * 60 * 60 * 1000);
-    await prisma.auditoriaAcciones.create({
-      data: {
-        usuarioId: uLogin.id,
-        accion: 'LOGIN',
-        entidad: 'Usuario',
-        detalles: `Inicio de sesión exitoso en terminal (${uLogin.nombre})`,
-        fecha: fechaLogin
-      }
-    });
+    if (uLogin) {
+      await prisma.auditoriaAcciones.create({
+        data: {
+          usuarioId: uLogin.id,
+          accion: 'LOGIN',
+          entidad: 'Usuario',
+          detalles: `Inicio de sesión exitoso en terminal (${uLogin.nombre})`,
+          fecha: fechaLogin
+        }
+      });
+    }
 
     const numIntervenciones = 6 + (offset % 8);
 
@@ -457,6 +459,8 @@ async function main() {
       const esATB = k % 2 === 0;
       const tipoPapelObj = esATB ? tipoPapel2 : tipoPapel1;
       const accionNombre = esATB ? 'Cambio de Papel ATB' : 'Cambio de Papel BTP';
+
+      if (!kiosko || !ingeniero) continue;
 
       let almacenOrigen = almacenCentral;
       if (kiosko.identificadorUnico.startsWith('CUN3')) almacenOrigen = almacenT3;

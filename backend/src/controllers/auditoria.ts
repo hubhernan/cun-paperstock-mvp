@@ -13,7 +13,7 @@ export const getAuditoria = async (req: Request, res: Response) => {
       where.fecha = {};
       if (fechaInicio) {
         const parts = String(fechaInicio).split('-').map(Number);
-        if (parts.length === 3) {
+        if (parts.length === 3 && parts[0] !== undefined && parts[1] !== undefined && parts[2] !== undefined) {
           where.fecha.gte = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
         } else {
           where.fecha.gte = new Date(String(fechaInicio));
@@ -21,7 +21,7 @@ export const getAuditoria = async (req: Request, res: Response) => {
       }
       if (fechaFin) {
         const parts = String(fechaFin).split('-').map(Number);
-        if (parts.length === 3) {
+        if (parts.length === 3 && parts[0] !== undefined && parts[1] !== undefined && parts[2] !== undefined) {
           where.fecha.lte = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
         } else {
           const d = new Date(String(fechaFin));
