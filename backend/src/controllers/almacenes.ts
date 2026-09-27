@@ -147,37 +147,8 @@ export const verificarStockAlmacen = async (req: Request, res: Response) => {
         message: `Stock de ${tipoPapel.codigo} verificado correctamente (${fisicNum} rollos).`
       });
     } else {
-      // DISCREPANCIA REPORTADA (Ajuste + Incidente + Auditoría)
+      // DISCREPANCIA REPORTADA (Meramente Informativa - Incidente + Auditoría, Stock intacto)
       await prisma.$transaction(async (tx) => {
-        const stocks = await tx.stockAlmacen.findMany({
-          where: { almacenId, tipoPapelId }
-        });
-
-        if (stocks.length > 0 && stocks[0]) {
-          const primerStock = stocks[0];
-          await tx.stockAlmacen.update({
-            where: { id: primerStock.id },
-            data: { cantidadActual: fisicNum }
-          });
-          for (let i = 1; i < stocks.length; i++) {
-            const currentItem = stocks[i];
-            if (currentItem) {
-              await tx.stockAlmacen.update({
-                where: { id: currentItem.id },
-                data: { cantidadActual: 0 }
-              });
-            }
-          }
-        } else {
-          await tx.stockAlmacen.create({
-            data: {
-              almacenId,
-              tipoPapelId,
-              cantidadActual: fisicNum
-            }
-          });
-        }
-
         const nuevoIncidente = await tx.incidenteDiscrepancia.create({
           data: {
             terminal: almacen.nombre,
@@ -185,7 +156,7 @@ export const verificarStockAlmacen = async (req: Request, res: Response) => {
             stockCalculado: calcNum,
             stockFisico: fisicNum,
             diferencia: diferencia,
-            comentarios: comentarios ? `[Discrepancia en Almacén] ${comentarios}` : `Diferencia de ${diferencia} rollos de ${tipoPapel.codigo} en ${almacen.nombre}`,
+            comentarios: comentarios ? `[Discrepancia Informativa en Almacén] ${comentarios}` : `Diferencia informativa de ${diferencia} rollos de ${tipoPapel.codigo} en ${almacen.nombre} (Stock del sistema conservado sin alteración)`,
             estado: 'ABIERTO'
           }
         });
@@ -193,17 +164,17 @@ export const verificarStockAlmacen = async (req: Request, res: Response) => {
         await tx.auditoriaAcciones.create({
           data: {
             usuarioId: ingenieroId,
-            accion: 'REPORTE_DISCREPANCIA_ALMACEN',
+            accion: 'REPORTE_DISCREPANCIA_INFORMATIVA_ALMACEN',
             entidad: 'IncidenteDiscrepancia',
             entidadId: nuevoIncidente.id,
-            detalles: `Discrepancia en ${almacen.nombre}: Sistema ${calcNum} vs Físico ${fisicNum} (${tipoPapel.codigo})`
+            detalles: `Discrepancia informativa en ${almacen.nombre}: Sistema ${calcNum} vs Físico ${fisicNum} (${tipoPapel.codigo}). Stock conservado intacto.`
           }
         });
       });
 
       return res.json({
         success: true,
-        message: `Discrepancia registrada (${diferencia > 0 ? '+' : ''}${diferencia} rollos). Incidente abierto para investigación.`
+        message: `Discrepancia registrada de forma informativa (${diferencia > 0 ? '+' : ''}${diferencia} rollos). El stock en el sistema no ha sido alterado y se abrió un incidente para su investigación.`
       });
     }
   } catch (error: any) {

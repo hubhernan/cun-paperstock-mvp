@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   History,
   Layers,
-  Clock
+  Clock,
+  Info
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -613,6 +614,25 @@ const Almacenes: React.FC = () => {
                                     <strong style={{ fontSize: '0.85rem', color: '#c2410c' }}>
                                       Reportar Discrepancia Física: {stockItem.tipoPapel?.codigo}
                                     </strong>
+
+                                    {/* Leyenda informativa de discrepancia sin alteración de stock */}
+                                    <div style={{ 
+                                      background: '#eff6ff', 
+                                      border: '1px solid #93c5fd', 
+                                      borderRadius: '6px', 
+                                      padding: '0.5rem 0.75rem', 
+                                      fontSize: '0.75rem', 
+                                      color: '#1e40af', 
+                                      display: 'flex', 
+                                      alignItems: 'flex-start', 
+                                      gap: '0.5rem' 
+                                    }}>
+                                      <Info size={16} style={{ minWidth: '16px', marginTop: '2px', color: '#2563eb' }} />
+                                      <span>
+                                        <strong>Aviso Informativo:</strong> El registro de esta discrepancia es meramente <strong>INFORMATIVO</strong> para la apertura de una investigación. El stock registrado en el sistema <strong>NO sufrirá alteraciones ni ajustes automáticos</strong> hasta que un supervisor investigue el origen del faltante o sobrante.
+                                      </span>
+                                    </div>
+
                                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                       <div style={{ flex: 1, minWidth: '140px' }}>
                                         <label style={{ display: 'block', fontSize: '0.75rem', color: '#9a3412', marginBottom: '0.25rem' }}>Conteo Físico Real (Rollos)</label>
@@ -647,11 +667,11 @@ const Almacenes: React.FC = () => {
                                       </button>
                                       <button 
                                         className="btn btn-primary" 
-                                        style={{ background: 'var(--color-danger)', padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+                                        style={{ background: '#2563eb', padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
                                         onClick={() => handleGuardarDiscrepancia(stockItem)}
                                         disabled={verificandoId === stockItem.id}
                                       >
-                                        <AlertCircle size={14} /> Registrar Incidente y Ajustar
+                                        📝 Registrar Discrepancia Informativa
                                       </button>
                                     </div>
                                   </div>
