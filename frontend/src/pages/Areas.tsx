@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X, RefreshCw, Building2, Check } from 'lucide-react';
+import { Map, Printer, Wifi, WifiOff, Battery, Wrench, X, RefreshCw, Building2, Check, RotateCcw, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
 
 interface TipoCompatibilidad {
@@ -7,6 +7,14 @@ interface TipoCompatibilidad {
     codigo: string;
     descripcion: string;
   };
+}
+
+interface IntervencionKioskoItem {
+  id: string;
+  accion: string;
+  fecha: string;
+  ingeniero?: { nombre: string };
+  almacenOrigen?: { nombre: string };
 }
 
 interface Periferico {
@@ -19,6 +27,7 @@ interface Periferico {
   nivelBtp: number;
   estadoConexion: string;
   tiposCompatibles: TipoCompatibilidad[];
+  IntervencionKiosko?: IntervencionKioskoItem[];
 }
 
 interface Area {
@@ -54,6 +63,13 @@ const Areas: React.FC = () => {
   const [nivelAtbInput, setNivelAtbInput] = useState(100);
   const [nivelBtpInput, setNivelBtpInput] = useState(100);
   const [estadoConexionInput, setEstadoConexionInput] = useState('ONLINE');
+
+  // Floating Toast state for 1-click Undo
+  const [toastData, setToastData] = useState<{
+    intervencionId: string;
+    kioskoCodigo: string;
+    accion: string;
+  } | null>(null);
 
   const getAlmacenesCompatibles = (kiosko: Periferico | null, areaOfKiosko?: Area | null) => {
     if (!kiosko) return almacenes;
@@ -227,7 +243,14 @@ const Areas: React.FC = () => {
       const res = await api.post('/intervenciones', payload);
 
       if (res.data.success) {
-        alert('Acción registrada con éxito.');
+        const intervencionId = res.data.data?.id;
+        if (intervencionId) {
+          setToastData({
+            intervencionId,
+            kioskoCodigo: selectedKiosko.identificadorUnico,
+            accion: actionType
+          });
+        }
         await fetchData();
         closeModal();
       }
@@ -237,6 +260,25 @@ const Areas: React.FC = () => {
       setModalError(errMsg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRevertirIntervencion = async (intervencionId: string) => {
+    if (!window.confirm('¿Deseas revertir esta acción? El insumo (1 rollo) regresará automáticamente al stock del almacén de origen y el movimiento de reversión quedará registrado en Auditoría.')) {
+      return;
+    }
+
+    try {
+      const res = await api.post(`/intervenciones/${intervencionId}/revertir`);
+      if (res.data.success) {
+        setToastData(null);
+        alert('✅ Acción revertida con éxito. 1 rollo ha regresado al almacén de origen.');
+        await fetchData();
+      }
+    } catch (error: any) {
+      console.error(error);
+      const errMsg = error.response?.data?.message || error.message || 'Error al revertir la acción.';
+      alert(`⚠️ ${errMsg}`);
     }
   };
 
@@ -496,10 +538,28 @@ const Areas: React.FC = () => {
                            </div>
                         </div>
 
+                        {/* Reversión de Última Acción en Kiosko */}
+                        {p.IntervencionKiosko && p.IntervencionKiosko.length > 0 && (
+                          <div style={{ marginTop: '0.65rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: '#f1f5f9', padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                            <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }} title={p.IntervencionKiosko[0].accion}>
+                              Última: <strong>{p.IntervencionKiosko[0].accion}</strong>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRevertirIntervencion(p.IntervencionKiosko![0].id)}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}
+                              title="Deshacer / Revertir esta acción y devolver el rollo al almacén"
+                            >
+                              <RotateCcw size={12} color="#ef4444" />
+                              Revertir
+                            </button>
+                          </div>
+                        )}
+
                         {/* Botón de Intervención */}
                         <button 
                           className="btn btn-secondary w-full" 
-                          style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
+                          style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.875rem', padding: '0.5rem' }}
                           onClick={() => handleOpenModal(p, area)}
                         >
                           <Wrench size={16} />
@@ -515,6 +575,55 @@ const Areas: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Floating Toast Emergente para Deshacer Inmediato */}
+      {toastData && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          background: '#0f172a',
+          color: 'white',
+          padding: '0.85rem 1.25rem',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <CheckCircle2 color="#10b981" size={22} />
+          <div>
+            <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>{toastData.accion} Registrada</div>
+            <div style={{ fontSize: '0.775rem', color: '#94a3b8' }}>Kiosko: {toastData.kioskoCodigo}</div>
+          </div>
+          <button
+            onClick={() => handleRevertirIntervencion(toastData.intervencionId)}
+            style={{
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem'
+            }}
+          >
+            <RotateCcw size={14} color="white" />
+            Deshacer / Revertir
+          </button>
+          <X 
+            size={18} 
+            style={{ cursor: 'pointer', opacity: 0.7, marginLeft: '0.25rem' }} 
+            onClick={() => setToastData(null)} 
+          />
+        </div>
+      )}
 
       {/* Modal de Intervención */}
       {selectedKiosko && (

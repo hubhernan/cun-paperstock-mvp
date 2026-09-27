@@ -11,6 +11,11 @@ export const getAllAreas = async (req: Request, res: Response) => {
           include: {
             tiposCompatibles: {
               include: { tipoPapel: true }
+            },
+            IntervencionKiosko: {
+              take: 1,
+              orderBy: { fecha: 'desc' },
+              include: { ingeniero: true, almacenOrigen: true }
             }
           },
           orderBy: { identificadorUnico: 'asc' }

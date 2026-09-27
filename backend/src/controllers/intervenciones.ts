@@ -198,3 +198,98 @@ export const createIntervencion = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: error.message || 'Error al registrar la acción' });
   }
 };
+
+export const revertirIntervencion = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const ingenieroId = (req as any).user.id;
+
+    const intervencion = await prisma.intervencionKiosko.findUnique({
+      where: { id },
+      include: {
+        periferico: true,
+        ingeniero: true,
+        almacenOrigen: true
+      }
+    });
+
+    if (!intervencion) {
+      return res.status(404).json({ success: false, message: 'Intervención no encontrada' });
+    }
+
+    const { perifericoId, accion, almacenOrigenId } = intervencion;
+
+    const result = await prisma.$transaction(async (tx) => {
+      let tipoPapelCodigo = '';
+      if (accion === 'Cambio de Papel ATB') tipoPapelCodigo = 'ATB';
+      if (accion === 'Cambio de Papel BTP') tipoPapelCodigo = 'BTP';
+
+      if (tipoPapelCodigo && almacenOrigenId) {
+        const tipoPapelObj = await tx.tipoPapel.findFirst({
+          where: { codigo: { contains: tipoPapelCodigo, mode: 'insensitive' } }
+        });
+
+        if (tipoPapelObj) {
+          let stockElegido = await tx.stockAlmacen.findFirst({
+            where: { almacenId: almacenOrigenId, tipoPapelId: tipoPapelObj.id }
+          });
+
+          if (!stockElegido) {
+            stockElegido = await tx.stockAlmacen.create({
+              data: { almacenId: almacenOrigenId, tipoPapelId: tipoPapelObj.id, cantidadActual: 1 }
+            });
+          } else {
+            await tx.stockAlmacen.update({
+              where: { id: stockElegido.id },
+              data: { cantidadActual: stockElegido.cantidadActual + 1 }
+            });
+          }
+
+          // Registrar movimiento de devolución de inventario
+          await tx.movimientoInventario.create({
+            data: {
+              tipoPapelId: tipoPapelObj.id,
+              loteId: stockElegido.loteId,
+              almacenOrigenId: null,
+              almacenDestinoId: almacenOrigenId,
+              tipoMovimiento: 'ENTRADA',
+              cantidad: 1,
+              usuarioId: ingenieroId,
+              comentarios: `[REVERSIÓN] Devolución por deshacer cambio en Kiosko ${intervencion.periferico.identificadorUnico}`
+            }
+          });
+        }
+
+        // Restablecer el nivel del kiosko a 0% para reactivar el estado de alerta crítica previo
+        const dataToUpdate: any = {};
+        if (accion === 'Cambio de Papel ATB') dataToUpdate.nivelAtb = 0;
+        if (accion === 'Cambio de Papel BTP') dataToUpdate.nivelBtp = 0;
+
+        await tx.periferico.update({
+          where: { id: perifericoId },
+          data: dataToUpdate
+        });
+      }
+
+      // Registrar auditoría de la reversión
+      await tx.auditoriaAcciones.create({
+        data: {
+          usuarioId: ingenieroId,
+          accion: 'REVERSION_INTERVENCION',
+          entidad: 'IntervencionKiosko',
+          entidadId: intervencion.id,
+          detalles: `Reversión de ${accion} en Kiosko ${intervencion.periferico.identificadorUnico}. 1 rollo devuelto a ${intervencion.almacenOrigen?.nombre || 'Almacén'}`
+        }
+      });
+
+      return intervencion;
+    });
+
+    clearKioskoAlertState(perifericoId);
+
+    res.json({ success: true, message: 'Acción revertida exitosamente. El insumo regresó al almacén de origen.', data: result });
+  } catch (error: any) {
+    console.error('Error al revertir intervención:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error al revertir la acción' });
+  }
+};
