@@ -9,7 +9,8 @@ import {
   getReporteKioskosAbastecidos,
   getReporteIncidentes,
   getReporteCorteDiarioKioskos,
-  getReporteCorteDiarioStock
+  getReporteCorteDiarioStock,
+  getReporteVerificacionesStockOK
 } from '../services/reportesService';
 import { exportToExcel } from '../utils/exportUtils';
 import { format } from 'date-fns';
@@ -235,6 +236,33 @@ const Reportes: React.FC = () => {
           totalBtp: d.totalBtp,
           creadoPor: d.creadoPor || 'SISTEMA_AUTO'
         }));
+      } else if (tipoReporte === 'verificacionesStockOK') {
+        data = await getReporteVerificacionesStockOK(filters);
+        title = 'Histórico de Verificaciones de Stock OK (Firma y Conteo)';
+        fileName = 'reporte_verificaciones_stock_ok';
+        columns = [
+          { header: 'Fecha', dataKey: 'fechaFormat' },
+          { header: 'Hora', dataKey: 'horaFormat' },
+          { header: 'Almacén', dataKey: 'almacenNombre' },
+          { header: 'Descripción', dataKey: 'descripcion' },
+          { header: 'Papel', dataKey: 'papel' },
+          { header: 'Cantidad (Rollos)', dataKey: 'cantidad' },
+          { header: 'Usuario / Ingeniero', dataKey: 'usuarioNombre' },
+        ];
+        data = data.map((d: any) => {
+          const dt = new Date(d.fecha);
+          const hh = String(dt.getHours()).padStart(2, '0');
+          const mm = String(dt.getMinutes()).padStart(2, '0');
+          return {
+            fechaFormat: format(dt, 'dd/MM/yyyy'),
+            horaFormat: `${hh}:${mm} hrs`,
+            almacenNombre: d.almacenNombre || '',
+            descripcion: d.descripcion || 'Stock OK',
+            papel: d.papel || '',
+            cantidad: d.cantidad,
+            usuarioNombre: d.usuarioNombre || ''
+          };
+        });
       }
 
       if (data.length === 0) {
@@ -293,6 +321,7 @@ const Reportes: React.FC = () => {
           >
             <option value="movimientos">Historial de Movimientos</option>
             <option value="valorStock">Valor de Stock Actual</option>
+            <option value="verificacionesStockOK">Histórico de Verificaciones de Stock OK (Firma y Conteo)</option>
             <option value="corteDiarioStock">Histórico de Cortes Diarios de Stock (23:50 hrs)</option>
             <option value="corteDiario">Corte Diario de Kioskos (Papel Instalado 00:00 - 23:59)</option>
             <option value="consumoArea">Consumo por Área</option>
