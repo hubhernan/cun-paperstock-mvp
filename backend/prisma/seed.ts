@@ -513,15 +513,60 @@ async function main() {
 
     // Logout histórico
     const fechaLogout = new Date(fechaBase.getTime() + 18 * 60 * 60 * 1000);
-    await prisma.auditoriaAcciones.create({
-      data: {
-        usuarioId: uLogin.id,
-        accion: 'LOGOUT',
-        entidad: 'Usuario',
-        detalles: `Cierre de sesión de turno (${uLogin.nombre})`,
-        fecha: fechaLogout
-      }
-    });
+    if (uLogin) {
+      await prisma.auditoriaAcciones.create({
+        data: {
+          usuarioId: uLogin.id,
+          accion: 'LOGOUT',
+          entidad: 'Usuario',
+          detalles: `Cierre de sesión de turno (${uLogin.nombre})`,
+          fecha: fechaLogout
+        }
+      });
+    }
+  }
+
+  // Generar verificaciones de stock OK históricas para demostración y firmado de inventario
+  const verifsEjemplo = [
+    { fecha: '2026-09-01T08:15:00Z', desc: 'Stock T3 OK', papel: 'ATB', cant: 8, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-01T08:16:00Z', desc: 'Stock T3 OK', papel: 'BTP', cant: 41, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-01T08:20:00Z', desc: 'Stock T4 OK', papel: 'ATB', cant: 7, usuarioNombre: 'Ray Rubio', almacenNombre: 'Almacén Local Terminal 4' },
+    { fecha: '2026-09-01T08:20:00Z', desc: 'Stock T4 OK', papel: 'BTP', cant: 36, usuarioNombre: 'Ray Rubio', almacenNombre: 'Almacén Local Terminal 4' },
+    { fecha: '2026-09-01T11:30:00Z', desc: 'Stock T4 OK', papel: 'ATB', cant: 10, usuarioNombre: 'Sheldon Craig', almacenNombre: 'Almacén Local Terminal 4' },
+    { fecha: '2026-09-01T11:32:00Z', desc: 'Stock T4 OK', papel: 'BTP', cant: 32, usuarioNombre: 'Sheldon Craig', almacenNombre: 'Almacén Local Terminal 4' },
+    { fecha: '2026-09-01T18:15:00Z', desc: 'Stock T3 OK', papel: 'ATB', cant: 10, usuarioNombre: 'Ismael Solorio', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-01T18:16:00Z', desc: 'Stock T3 OK', papel: 'BTP', cant: 43, usuarioNombre: 'Ismael Solorio', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-25T08:30:00Z', desc: 'Stock T2 OK', papel: 'ATB', cant: 120, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Central Terminal 2' },
+    { fecha: '2026-09-25T08:31:00Z', desc: 'Stock T2 OK', papel: 'BTP', cant: 350, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Central Terminal 2' },
+    { fecha: '2026-09-26T09:00:00Z', desc: 'Stock T3 OK', papel: 'ATB', cant: 180, usuarioNombre: 'Ray Rubio', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-26T09:02:00Z', desc: 'Stock T3 OK', papel: 'BTP', cant: 490, usuarioNombre: 'Ray Rubio', almacenNombre: 'Almacén Local Terminal 3' },
+    { fecha: '2026-09-27T07:45:00Z', desc: 'Stock T4 OK', papel: 'ATB', cant: 71, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Local Terminal 4' },
+    { fecha: '2026-09-27T07:46:00Z', desc: 'Stock T4 OK', papel: 'BTP', cant: 488, usuarioNombre: 'Flor Toledo', almacenNombre: 'Almacén Local Terminal 4' },
+  ];
+
+  const almacenesList = [almacenCentral, almacenT3, almacenT4];
+
+  for (const v of verifsEjemplo) {
+    const usr = usuarios.find(u => u.nombre.toLowerCase().includes(v.usuarioNombre.toLowerCase())) || usuarios[0];
+    const alm = almacenesList.find(a => a.nombre.toLowerCase().includes(v.almacenNombre.toLowerCase())) || almacenesList[0];
+    if (usr && alm) {
+      await prisma.auditoriaAcciones.create({
+        data: {
+          usuarioId: usr.id,
+          accion: 'VERIFICACION_STOCK_OK',
+          entidad: 'Almacen',
+          entidadId: alm.id,
+          detalles: JSON.stringify({
+            descripcion: v.desc,
+            papel: v.papel,
+            cantidad: v.cant,
+            almacenNombre: v.almacenNombre,
+            usuarioNombre: usr.nombre
+          }),
+          fecha: new Date(v.fecha)
+        }
+      });
+    }
   }
 
   console.log(`✅ Se generaron ${countIntervenciones} intervenciones, movimientos y registros de auditoría históricos exitosamente.`);

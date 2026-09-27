@@ -54,6 +54,18 @@ interface Movimiento {
   usuario: { nombre: string };
 }
 
+interface VerificacionOK {
+  id: string;
+  fecha: string;
+  fechaFormatted: string;
+  horaFormatted: string;
+  descripcion: string;
+  papel: string;
+  cantidad: number;
+  usuario: string;
+  almacenNombre: string;
+}
+
 const Almacenes: React.FC = () => {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [cortesDiarios, setCortesDiarios] = useState<CorteDiarioItem[]>([]);
@@ -67,6 +79,11 @@ const Almacenes: React.FC = () => {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loadingMovimientos, setLoadingMovimientos] = useState(true);
   const [filtroTipoMovimiento, setFiltroTipoMovimiento] = useState<string>('ALL');
+
+  // Bitácora de Verificaciones Stock OK
+  const [verificacionesOK, setVerificacionesOK] = useState<VerificacionOK[]>([]);
+  const [loadingVerificaciones, setLoadingVerificaciones] = useState<boolean>(true);
+  const [filtroTerminalVerif, setFiltroTerminalVerif] = useState<string>('ALL');
 
   // Estados para verificación de stock y discrepancias
   const [verificandoId, setVerificandoId] = useState<string | null>(null);
@@ -114,10 +131,25 @@ const Almacenes: React.FC = () => {
     }
   };
 
+  const fetchVerificacionesOK = async () => {
+    try {
+      setLoadingVerificaciones(true);
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes/verificaciones-ok');
+      if (response.data.success) {
+        setVerificacionesOK(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching verificaciones OK', error);
+    } finally {
+      setLoadingVerificaciones(false);
+    }
+  };
+
   useEffect(() => {
     fetchAlmacenes();
     fetchCortesDiarios();
     fetchMovimientos();
+    fetchVerificacionesOK();
   }, []);
 
   const handleVerStock = async (almacen: Almacen) => {
@@ -126,6 +158,7 @@ const Almacenes: React.FC = () => {
     setLoadingStock(true);
     setFeedbackMsg(null);
     setEditandoStockId(null);
+    fetchVerificacionesOK();
     try {
       const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + `/api/almacenes/${almacen.id}/stock`);
       if (response.data.success) {
@@ -156,6 +189,7 @@ const Almacenes: React.FC = () => {
         setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'OK' }));
         setFeedbackMsg({ tipo: 'success', texto: response.data.message });
         fetchMovimientos();
+        fetchVerificacionesOK();
       }
     } catch (err: any) {
       setFeedbackMsg({ tipo: 'error', texto: err.response?.data?.message || 'Error al confirmar stock' });
@@ -499,6 +533,113 @@ const Almacenes: React.FC = () => {
         )}
       </div>
 
+      {/* Bitácora General de Verificaciones de Stock OK (Firmas de Campo) */}
+      <div className="card" style={{ marginTop: '1.5rem', padding: '1.25rem' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          marginBottom: '1rem',
+          gap: '1rem',
+          background: '#f8fafc',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={20} color="#16a34a" />
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#1e293b' }}>
+              Bitácora de Verificaciones de Stock OK (Firma y Conteo de Campo)
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <select 
+              className="input-field" 
+              style={{ margin: 0, padding: '0.4rem 2rem 0.4rem 0.75rem', background: 'white', fontSize: '0.875rem' }} 
+              value={filtroTerminalVerif} 
+              onChange={(e) => setFiltroTerminalVerif(e.target.value)}
+            >
+              <option value="ALL">Todas las Terminales</option>
+              <option value="T2">Terminal 2</option>
+              <option value="T3">Terminal 3</option>
+              <option value="T4">Terminal 4</option>
+            </select>
+          </div>
+        </div>
+
+        {loadingVerificaciones ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            Cargando bitácora de verificaciones OK...
+          </div>
+        ) : (
+          (() => {
+            const verifsFiltradas = verificacionesOK.filter(v => {
+              if (filtroTerminalVerif === 'ALL') return true;
+              if (filtroTerminalVerif === 'T2') return v.descripcion.includes('T2') || v.almacenNombre.includes('Terminal 2');
+              if (filtroTerminalVerif === 'T3') return v.descripcion.includes('T3') || v.almacenNombre.includes('Terminal 3');
+              if (filtroTerminalVerif === 'T4') return v.descripcion.includes('T4') || v.almacenNombre.includes('Terminal 4');
+              return true;
+            });
+
+            if (verifsFiltradas.length === 0) {
+              return (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  No se encontraron verificaciones OK registradas para el filtro seleccionado.
+                </div>
+              );
+            }
+
+            return (
+              <div className="table-responsive">
+                <table className="data-table w-full" style={{ fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr>
+                      <th>FECHA</th>
+                      <th>HORA</th>
+                      <th>DESCRIPCIÓN</th>
+                      <th>PAPEL</th>
+                      <th style={{ textAlign: 'center' }}>CANTIDAD</th>
+                      <th>USUARIO / INGENIERO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {verifsFiltradas.map((v) => (
+                      <tr key={v.id}>
+                        <td style={{ fontWeight: 500 }}>{v.fechaFormatted}</td>
+                        <td style={{ color: '#475569' }}>{v.horaFormatted}</td>
+                        <td>
+                          <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '0.75rem', fontWeight: 600 }}>
+                            {v.descripcion}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge" style={{ 
+                            background: v.papel === 'ATB' ? '#dbeafe' : '#fef3c7', 
+                            color: v.papel === 'ATB' ? '#1e40af' : '#b45309',
+                            fontSize: '0.75rem',
+                            fontWeight: 700 
+                          }}>
+                            {v.papel}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: '#0f172a' }}>
+                          {v.cantidad}
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#334155' }}>
+                          {v.usuario}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()
+        )}
+      </div>
+
       {/* Modal de Stock a Detalle */}
       {modalOpen && selectedAlmacen && (
         <div className="modal-overlay">
@@ -685,6 +826,72 @@ const Almacenes: React.FC = () => {
                   </table>
                 </div>
               )}
+
+              {/* Bitácora de Verificaciones de Stock OK firmadas para este Almacén */}
+              <div style={{ marginTop: '1.5rem', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                    <CheckCircle2 size={16} color="#16a34a" /> Bitácora de Verificaciones de Stock OK (Firma y Conteo)
+                  </h4>
+                  <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontSize: '0.75rem', fontWeight: 600 }}>
+                    {verificacionesOK.filter(v => v.almacenNombre === selectedAlmacen?.nombre).length} Registros
+                  </span>
+                </div>
+
+                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <table className="table w-full" style={{ fontSize: '0.78rem', marginBottom: 0 }}>
+                    <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
+                      <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>FECHA</th>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>HORA</th>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>DESCRIPCIÓN</th>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>PAPEL</th>
+                        <th style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>CANT</th>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>USUARIO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {verificacionesOK.filter(v => v.almacenNombre === selectedAlmacen?.nombre).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: '1rem', color: '#64748b' }}>
+                            No se han registrado verificaciones OK para este almacén.
+                          </td>
+                        </tr>
+                      ) : (
+                        verificacionesOK
+                          .filter(v => v.almacenNombre === selectedAlmacen?.nombre)
+                          .map((v) => (
+                            <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.4rem 0.75rem', fontWeight: 500 }}>{v.fechaFormatted}</td>
+                              <td style={{ padding: '0.4rem 0.75rem', color: '#475569' }}>{v.horaFormatted}</td>
+                              <td>
+                                <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '0.7rem', fontWeight: 600 }}>
+                                  {v.descripcion}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="badge" style={{ 
+                                  background: v.papel === 'ATB' ? '#dbeafe' : '#fef3c7', 
+                                  color: v.papel === 'ATB' ? '#1e40af' : '#b45309',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700 
+                                }}>
+                                  {v.papel}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.4rem 0.75rem', textAlign: 'center', fontWeight: 700, color: '#0f172a' }}>
+                                {v.cantidad}
+                              </td>
+                              <td style={{ padding: '0.4rem 0.75rem', fontWeight: 600, color: '#334155' }}>
+                                {v.usuario}
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>

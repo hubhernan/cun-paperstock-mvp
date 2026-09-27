@@ -131,14 +131,32 @@ export const verificarStockAlmacen = async (req: Request, res: Response) => {
     const diferencia = fisicNum - calcNum;
 
     if (diferencia === 0) {
-      // CONTEO CORRECTO
+      // CONTEO CORRECTO - FIRMA Y REGISTRO DE VERIFICACIÓN
+      const usuario = await prisma.usuario.findUnique({ where: { id: ingenieroId } });
+      const usuarioNombre = usuario ? usuario.nombre : 'INGENIERO DE CAMPO';
+
+      let termDesc = 'Stock Almacén OK';
+      if (almacen.nombre.includes('Terminal 2') || almacen.nombre.includes('T2')) termDesc = 'Stock T2 OK';
+      else if (almacen.nombre.includes('Terminal 3') || almacen.nombre.includes('T3')) termDesc = 'Stock T3 OK';
+      else if (almacen.nombre.includes('Terminal 4') || almacen.nombre.includes('T4')) termDesc = 'Stock T4 OK';
+
+      const papelCode = tipoPapel.codigo.toUpperCase().includes('ATB') ? 'ATB' : (tipoPapel.codigo.toUpperCase().includes('BTP') ? 'BTP' : tipoPapel.codigo);
+
+      const auditPayload = {
+        descripcion: termDesc,
+        papel: papelCode,
+        cantidad: fisicNum,
+        almacenNombre: almacen.nombre,
+        usuarioNombre: usuarioNombre
+      };
+
       await prisma.auditoriaAcciones.create({
         data: {
           usuarioId: ingenieroId,
           accion: 'VERIFICACION_STOCK_OK',
           entidad: 'Almacen',
           entidadId: almacenId,
-          detalles: `Stock verificado 100% correcto: ${fisicNum} rollos de ${tipoPapel.codigo} en ${almacen.nombre}`
+          detalles: JSON.stringify(auditPayload)
         }
       });
 
@@ -180,5 +198,104 @@ export const verificarStockAlmacen = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message || 'Error al verificar stock' });
+  }
+};
+
+export const getVerificacionesStock = async (req: Request, res: Response) => {
+  try {
+    const { almacenId } = req.query;
+
+    const whereClause: any = {
+      accion: 'VERIFICACION_STOCK_OK'
+    };
+
+    if (almacenId && typeof almacenId === 'string') {
+      whereClause.entidadId = almacenId;
+    }
+
+    const auditorias = await prisma.auditoriaAcciones.findMany({
+      where: whereClause,
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      },
+      orderBy: {
+        fecha: 'desc'
+      },
+      take: 200
+    });
+
+    const almacenes = await prisma.almacen.findMany();
+    const almacenesMap = new Map(almacenes.map(a => [a.id, a.nombre]));
+
+    const result = auditorias.map(item => {
+      let descripcion = 'Stock OK';
+      let papel = 'ATB';
+      let cantidad = 0;
+      let usuarioNombre = item.usuario?.nombre || 'INGENIERO DE CAMPO';
+
+      const almacenNombre = item.entidadId ? almacenesMap.get(item.entidadId) || 'Almacén' : 'Almacén';
+      if (almacenNombre.includes('Terminal 2') || almacenNombre.includes('T2')) descripcion = 'Stock T2 OK';
+      else if (almacenNombre.includes('Terminal 3') || almacenNombre.includes('T3')) descripcion = 'Stock T3 OK';
+      else if (almacenNombre.includes('Terminal 4') || almacenNombre.includes('T4')) descripcion = 'Stock T4 OK';
+
+      if (item.detalles) {
+        try {
+          if (item.detalles.startsWith('{')) {
+            const parsed = JSON.parse(item.detalles);
+            if (parsed.descripcion) descripcion = parsed.descripcion;
+            if (parsed.papel) papel = parsed.papel;
+            if (typeof parsed.cantidad === 'number') cantidad = parsed.cantidad;
+            if (parsed.usuarioNombre) usuarioNombre = parsed.usuarioNombre;
+          } else {
+            if (item.detalles.includes('BTP')) papel = 'BTP';
+            else if (item.detalles.includes('ATB')) papel = 'ATB';
+
+            const cantMatch = item.detalles.match(/(\d+)\s+rollos/);
+            if (cantMatch && cantMatch[1]) {
+              cantidad = parseInt(cantMatch[1], 10);
+            }
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+
+      const d = new Date(item.fecha);
+      const meses = ['Sep', 'Sep', 'Sep', 'Sep', 'Sep', 'Sep', 'Sep', 'Sep', 'Sep', 'Oct', 'Nov', 'Dic'];
+      // Use date-fns or simple JS date formatting
+      const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const dia = d.getDate();
+      const mes = mesesNombres[d.getMonth()];
+      const anio = d.getFullYear();
+      const fechaFormatted = `${dia} ${mes} ${anio}`;
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const horaFormatted = `${hh}:${mm}`;
+
+      return {
+        id: item.id,
+        fecha: item.fecha,
+        fechaFormatted,
+        horaFormatted,
+        descripcion,
+        papel,
+        cantidad,
+        usuario: usuarioNombre,
+        almacenNombre
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: result
+    });
+  } catch (error: any) {
+    console.error('Error al obtener verificaciones de stock:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener verificaciones de stock' });
   }
 };
