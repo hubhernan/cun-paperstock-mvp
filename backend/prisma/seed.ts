@@ -181,16 +181,16 @@ async function main() {
     },
   });
 
-  // 5. Stock de Almacenes Sincronizado
+  // 5. Stock de Almacenes Sincronizado con Valores Reales de Operación
   await prisma.stockAlmacen.deleteMany();
   await prisma.stockAlmacen.createMany({
     data: [
-      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel2.id, cantidadActual: 238 }, // ATB 238
-      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel1.id, cantidadActual: 495 }, // BTP 495
-      { almacenId: almacenT4.id, tipoPapelId: tipoPapel2.id, cantidadActual: 75 },      // ATB 75
-      { almacenId: almacenT4.id, tipoPapelId: tipoPapel1.id, cantidadActual: 491 },     // BTP 491
-      { almacenId: almacenT3.id, tipoPapelId: tipoPapel2.id, cantidadActual: 81 },      // ATB 81
-      { almacenId: almacenT3.id, tipoPapelId: tipoPapel1.id, cantidadActual: 180 },     // BTP 180
+      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel2.id, cantidadActual: 10 },  // T2 ATB: 10
+      { almacenId: almacenCentral.id, tipoPapelId: tipoPapel1.id, cantidadActual: 110 }, // T2 BTP: 110
+      { almacenId: almacenT4.id, tipoPapelId: tipoPapel2.id, cantidadActual: 7 },         // T4 ATB: 7
+      { almacenId: almacenT4.id, tipoPapelId: tipoPapel1.id, cantidadActual: 32 },        // T4 BTP: 32
+      { almacenId: almacenT3.id, tipoPapelId: tipoPapel2.id, cantidadActual: 11 },        // T3 ATB: 11
+      { almacenId: almacenT3.id, tipoPapelId: tipoPapel1.id, cantidadActual: 47 },        // T3 BTP: 47
     ]
   });
 

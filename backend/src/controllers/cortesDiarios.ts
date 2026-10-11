@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { asegurarCortesDiarios, getStockActualAlmacenes } from '../services/CorteDiarioService';
 
 const prisma = new PrismaClient();
 
@@ -31,68 +32,16 @@ const parseFechaFin = (str: any): Date | undefined => {
   return d;
 };
 
-// Obtener los últimos 3 cortes diarios (23:50 hrs)
+// Obtener los últimos 3 cortes diarios (23:50 hrs) con sumatoria real de almacenes
 export const getUltimos3CortesDiarios = async (req: Request, res: Response) => {
   try {
-    let cortes = await prisma.corteDiario.findMany({
+    // Asegurar y sincronizar todos los cortes diarios hasta hoy con existencia real
+    await asegurarCortesDiarios();
+
+    const cortes = await prisma.corteDiario.findMany({
       take: 3,
       orderBy: { fechaCorte: 'desc' }
     });
-
-    // Si hay menos de 3 cortes registrados, generar cortes basados en el inventario actual e histórico
-    if (cortes.length < 3) {
-      const stocks = await prisma.stockAlmacen.findMany({
-        include: { tipoPapel: true, almacen: true }
-      });
-
-      let currentAtb = 0;
-      let currentBtp = 0;
-      stocks.forEach(s => {
-        const codigo = (s.tipoPapel?.codigo || '').toUpperCase();
-        if (codigo.includes('ATB')) currentAtb += s.cantidadActual;
-        if (codigo.includes('BTP')) currentBtp += s.cantidadActual;
-      });
-
-      const today = new Date();
-
-      // Generar 3 registros automáticos a las 23:50 hrs para hoy, ayer y hace 2 días si faltan
-      for (let i = 0; i < 3; i++) {
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() - i);
-        targetDate.setHours(23, 50, 0, 0);
-
-        // Variaciones realistas históricas para simular el consumo proyectado a las 23:50
-        const deltaAtb = i * 4;
-        const deltaBtp = i * 28;
-        const simAtb = Math.max(20, currentAtb + deltaAtb);
-        const simBtp = Math.max(100, currentBtp + deltaBtp);
-
-        const existe = await prisma.corteDiario.findFirst({
-          where: {
-            fechaCorte: {
-              gte: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0),
-              lte: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59)
-            }
-          }
-        });
-
-        if (!existe) {
-          await prisma.corteDiario.create({
-            data: {
-              fechaCorte: targetDate,
-              totalAtb: simAtb,
-              totalBtp: simBtp,
-              creadoPor: 'SISTEMA_AUTO'
-            }
-          });
-        }
-      }
-
-      cortes = await prisma.corteDiario.findMany({
-        take: 3,
-        orderBy: { fechaCorte: 'desc' }
-      });
-    }
 
     const dataFormatted = cortes.map(c => ({
       id: c.id,
@@ -113,6 +62,9 @@ export const getUltimos3CortesDiarios = async (req: Request, res: Response) => {
 // Obtener histórico de cortes diarios para la sección de Reportes
 export const getCortesDiariosReporte = async (req: Request, res: Response) => {
   try {
+    // Asegurar y recuperar todos los cortes históricos pendientes
+    await asegurarCortesDiarios();
+
     const { fechaInicio, fechaFin } = req.query;
     const where: any = {};
 
@@ -146,22 +98,13 @@ export const getCortesDiariosReporte = async (req: Request, res: Response) => {
   }
 };
 
-// Ejecutar o forzar corte diario a las 23:50
+// Ejecutar o forzar corte diario a las 23:50 con sumatoria real de almacenes
 export const ejecutarCorteDiarioManual = async (req: Request, res: Response) => {
   try {
     const adminId = (req as any).user?.id || 'SISTEMA';
 
-    const stocks = await prisma.stockAlmacen.findMany({
-      include: { tipoPapel: true }
-    });
-
-    let totalAtb = 0;
-    let totalBtp = 0;
-    stocks.forEach(s => {
-      const codigo = (s.tipoPapel?.codigo || '').toUpperCase();
-      if (codigo.includes('ATB')) totalAtb += s.cantidadActual;
-      if (codigo.includes('BTP')) totalBtp += s.cantidadActual;
-    });
+    // Obtener la existencia real de todos los almacenes
+    const { totalAtb, totalBtp } = await getStockActualAlmacenes();
 
     const fechaCorte = new Date();
     fechaCorte.setHours(23, 50, 0, 0);
@@ -175,7 +118,7 @@ export const ejecutarCorteDiarioManual = async (req: Request, res: Response) => 
       }
     });
 
-    res.json({ success: true, data: nuevoCorte, message: 'Corte diario generado a las 23:50 hrs exitosamente' });
+    res.json({ success: true, data: nuevoCorte, message: 'Corte diario generado a las 23:50 hrs exitosamente con las existencias reales de almacén' });
   } catch (error) {
     console.error('Error al generar corte diario:', error);
     res.status(500).json({ success: false, message: 'Error al generar corte diario' });

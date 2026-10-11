@@ -20,6 +20,7 @@ import usuariosRoutes from './routes/usuarios';
 import intervencionesRoutes from './routes/intervenciones';
 import cortesDiariosRoutes from './routes/cortesDiarios';
 import { startAlertService } from './services/AlertService';
+import { startCorteDiarioScheduler } from './services/CorteDiarioService';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -58,6 +59,8 @@ app.use((req, res, next) => {
 const server = createServer(app);
 // Iniciar servicio automático de alertas (Fase 4)
 startAlertService();
+// Iniciar servicio automático de cortes diarios a las 23:50 hrs y auto-recuperación
+startCorteDiarioScheduler();
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
