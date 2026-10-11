@@ -48,14 +48,10 @@ export async function asegurarCortesDiarios() {
     const now = new Date();
 
     // Determinar la fecha objetivo final:
-    // Si hoy ya son las 23:50 o más tarde, incluir el corte de hoy.
-    // Si aún no son las 23:50 de hoy, el corte más reciente cerrado es el de ayer.
+    // Siempre incluir el corte del día de hoy a las 23:50 hrs sincronizado en vivo
+    // con la existencia real de los almacenes (T2, T3, T4).
     const today2350 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 50, 0, 0);
-
     const targetEndDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (now.getTime() < today2350.getTime()) {
-      targetEndDay.setDate(targetEndDay.getDate() - 1);
-    }
 
     // Reconstruir un histórico de los últimos 45 días continuos
     const startDate = new Date(targetEndDay);
@@ -86,6 +82,32 @@ export async function asegurarCortesDiarios() {
           }
         }
       });
+
+      const isToday = currDay.toDateString() === now.toDateString();
+
+      // Si es hoy, mantenerlo 100% alineado con la sumatoria física real actual de los almacenes
+      if (isToday) {
+        if (existe) {
+          await prisma.corteDiario.update({
+            where: { id: existe.id },
+            data: {
+              totalAtb: stockActAtb,
+              totalBtp: stockActBtp
+            }
+          });
+        } else {
+          await prisma.corteDiario.create({
+            data: {
+              fechaCorte: fechaCorteTime,
+              totalAtb: stockActAtb,
+              totalBtp: stockActBtp,
+              creadoPor: 'SISTEMA_AUTO'
+            }
+          });
+        }
+        currDay.setDate(currDay.getDate() - 1);
+        continue;
+      }
 
       if (!existe) {
         let atbAtCut = stockActAtb;
