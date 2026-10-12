@@ -181,7 +181,15 @@ async function main() {
     },
   });
 
-  // 5. Stock de Almacenes Sincronizado con Valores Reales de Operación
+  // 5. Proteger inventario y registros de ingenieros si ya existen datos operativos
+  const stockCount = await prisma.stockAlmacen.count();
+  const movCount = await prisma.movimientoInventario.count();
+  if (stockCount > 0 || movCount > 0) {
+    console.log('🛡️ Base de datos en producción cuenta con stock o movimientos reales. Preservando inventario y movimientos intactos.');
+    return;
+  }
+
+  // Stock inicial únicamente si la base de datos está totalmente vacía
   await prisma.stockAlmacen.deleteMany();
   await prisma.stockAlmacen.createMany({
     data: [

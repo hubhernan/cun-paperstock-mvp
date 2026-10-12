@@ -57,7 +57,7 @@ export async function asegurarCortesDiarios() {
     // 2. Sumatoria de existencia real actual en todos los almacenes (T2, T3, T4)
     const { totalAtb: stockActAtb, totalBtp: stockActBtp } = await getStockActualAlmacenes();
 
-    // 3. Verificar si ya existe el corte de hoy con los valores exactos del stock actual y contamos con historial
+    // 3. Comprobar corte de HOY en la base de datos
     const startOfToday = new Date(Date.UTC(curYear, curMonth - 1, curDay, 0, 0, 0));
     const endOfToday = new Date(Date.UTC(curYear, curMonth - 1, curDay, 23, 59, 59, 999));
 
@@ -70,17 +70,53 @@ export async function asegurarCortesDiarios() {
       prisma.corteDiario.count()
     ]);
 
-    if (
-      corteHoy &&
-      corteHoy.totalAtb === stockActAtb &&
-      corteHoy.totalBtp === stockActBtp &&
-      totalCount >= 30
-    ) {
-      // Los cortes diarios ya están al día y sincronizados con la realidad
-      return;
+    // Caso A: El corte de hoy ya existe
+    if (corteHoy) {
+      // Si los ingenieros hicieron movimientos hoy que alteraron el inventario, sincronizar el corte de hoy en vivo
+      if (corteHoy.totalAtb !== stockActAtb || corteHoy.totalBtp !== stockActBtp) {
+        await prisma.corteDiario.update({
+          where: { id: corteHoy.id },
+          data: {
+            totalAtb: stockActAtb,
+            totalBtp: stockActBtp
+          }
+        });
+      }
+
+      // Si el historial ya cuenta con registros pasados (al menos 30 días), no tocar nada del pasado
+      if (totalCount >= 30) {
+        return;
+      }
+    } else {
+      // Caso B: El corte de hoy aún no existe (ej. arranca un nuevo día o se desplegó recientemente)
+      const targetDate = new Date(Date.UTC(curYear, curMonth - 1, curDay, 12, 0, 0));
+      await prisma.corteDiario.create({
+        data: {
+          fechaCorte: targetDate,
+          totalAtb: stockActAtb,
+          totalBtp: stockActBtp,
+          creadoPor: 'SISTEMA_AUTO'
+        }
+      });
+
+      // Si el historial previo ya existe, terminamos
+      if (totalCount >= 30) {
+        return;
+      }
     }
 
-    // 4. Si falta el corte de hoy o hay desincronización, calcular la evolución histórica completa
+    // Caso C: Historial incompleto (primer arranque o migración inicial).
+    // Consultamos qué fechas ya existen para NO sobreescribir ni borrar cortes reales existentes.
+    const existentes = await prisma.corteDiario.findMany({
+      select: { fechaCorte: true }
+    });
+    const fechasExistentesSet = new Set(
+      existentes.map(e => {
+        const d = new Date(e.fechaCorte);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      })
+    );
+
     const movimientos = await prisma.movimientoInventario.findMany({
       include: { tipoPapel: true },
       orderBy: { fechaMovimiento: 'asc' }
@@ -127,21 +163,23 @@ export async function asegurarCortesDiarios() {
       creadoPor: string;
     }> = [];
 
-    // Generar los últimos 45 días continuos de cortes diarios terminando en HOY (Cancún)
+    // Generar únicamente los días faltantes hacia atrás sin borrar nada de lo existente
     for (let offset = 0; offset <= 45; offset++) {
-      // Fecha en UTC medio día para garantizar que no haya desplazamiento de día calendario
       const targetDate = new Date(Date.UTC(curYear, curMonth - 1, curDay - offset, 12, 0, 0));
       const keyY = targetDate.getUTCFullYear();
       const keyM = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
       const keyD = String(targetDate.getUTCDate()).padStart(2, '0');
       const key = `${keyY}-${keyM}-${keyD}`;
 
-      cortesToCreate.push({
-        fechaCorte: targetDate,
-        totalAtb: runningAtb,
-        totalBtp: runningBtp,
-        creadoPor: 'SISTEMA_AUTO'
-      });
+      if (!fechasExistentesSet.has(key)) {
+        cortesToCreate.push({
+          fechaCorte: targetDate,
+          totalAtb: runningAtb,
+          totalBtp: runningBtp,
+          creadoPor: 'SISTEMA_AUTO'
+        });
+        fechasExistentesSet.add(key);
+      }
 
       // Calcular el inventario al cierre del día anterior revirtiendo los movimientos de este día
       const movDia = movsPorDia.get(key);
@@ -159,23 +197,11 @@ export async function asegurarCortesDiarios() {
       runningBtp = Math.max(140, Math.min(260, runningBtp));
     }
 
-    // Reemplazo atómico en una sola transacción para evitar que peticiones concurrentes vean la tabla vacía
-    await prisma.$transaction([
-      prisma.corteDiario.deleteMany({
-        where: {
-          OR: [
-            { creadoPor: 'SISTEMA_AUTO' },
-            { totalAtb: { gt: 250 } },
-            { totalBtp: { gt: 600 } },
-            { totalAtb: { lte: 0 } },
-            { totalBtp: { lte: 0 } }
-          ]
-        }
-      }),
-      prisma.corteDiario.createMany({
+    if (cortesToCreate.length > 0) {
+      await prisma.corteDiario.createMany({
         data: cortesToCreate
-      })
-    ]);
+      });
+    }
 
   } catch (error) {
     console.error('Error al asegurar cortes diarios:', error);

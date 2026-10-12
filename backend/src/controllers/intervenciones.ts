@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { clearKioskoAlertState } from '../services/AlertService';
+import { asegurarCortesDiarios } from '../services/CorteDiarioService';
 
 const prisma = new PrismaClient();
 
@@ -192,6 +193,9 @@ export const createIntervencion = async (req: Request, res: Response) => {
 
     clearKioskoAlertState(perifericoId);
 
+    // Sincronizar de inmediato el corte del día con el nuevo inventario
+    asegurarCortesDiarios().catch(err => console.error('Error sincronizando corte tras intervención:', err));
+
     res.json({ success: true, data: result, message: 'Acción registrada con éxito y stock actualizado.' });
   } catch (error: any) {
     console.error(error);
@@ -286,6 +290,9 @@ export const revertirIntervencion = async (req: Request, res: Response) => {
     });
 
     clearKioskoAlertState(perifericoId);
+
+    // Sincronizar de inmediato el corte del día tras la devolución de inventario
+    asegurarCortesDiarios().catch(err => console.error('Error sincronizando corte tras reversión:', err));
 
     res.json({ success: true, message: 'Acción revertida exitosamente. El insumo regresó al almacén de origen.', data: result });
   } catch (error: any) {

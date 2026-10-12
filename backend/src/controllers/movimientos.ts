@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { getIO } from '../socket';
 import { verificarAlertaStock } from './alertas';
+import { asegurarCortesDiarios } from '../services/CorteDiarioService';
 
 const prisma = new PrismaClient();
 
@@ -95,6 +96,9 @@ export const registrarMovimiento = async (req: Request, res: Response) => {
     } catch (err) {
       console.error('WebSocket no disponible', err);
     }
+
+    // Sincronizar de inmediato el corte del día con las nuevas existencias
+    asegurarCortesDiarios().catch(err => console.error('Error sincronizando corte diario tras movimiento:', err));
   } catch (error: any) {
     console.error('Error en transacción:', error);
     res.status(400).json({ success: false, message: error.message || 'Error al registrar movimiento' });
