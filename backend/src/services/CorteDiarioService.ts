@@ -51,26 +51,36 @@ export async function getStockActualAlmacenes() {
  */
 export async function asegurarCortesDiarios() {
   try {
-    // 1. Limpiar registros automáticos anteriores para garantizar total sincronización
-    await prisma.corteDiario.deleteMany({
-      where: {
-        OR: [
-          { creadoPor: 'SISTEMA_AUTO' },
-          { totalAtb: { gt: 250 } },
-          { totalBtp: { gt: 600 } },
-          { totalAtb: { lte: 0 } },
-          { totalBtp: { lte: 0 } }
-        ]
-      }
-    });
-
-    // 2. Obtener la fecha de HOY en horario oficial de Cancún (CUN)
+    // 1. Obtener la fecha de HOY en horario oficial de Cancún (CUN)
     const { year: curYear, month: curMonth, day: curDay } = getFechaActualCancun();
 
-    // 3. Sumatoria de existencia real actual en todos los almacenes (T2, T3, T4)
+    // 2. Sumatoria de existencia real actual en todos los almacenes (T2, T3, T4)
     const { totalAtb: stockActAtb, totalBtp: stockActBtp } = await getStockActualAlmacenes();
 
-    // 4. Obtener los movimientos históricos de inventario
+    // 3. Verificar si ya existe el corte de hoy con los valores exactos del stock actual y contamos con historial
+    const startOfToday = new Date(Date.UTC(curYear, curMonth - 1, curDay, 0, 0, 0));
+    const endOfToday = new Date(Date.UTC(curYear, curMonth - 1, curDay, 23, 59, 59, 999));
+
+    const [corteHoy, totalCount] = await Promise.all([
+      prisma.corteDiario.findFirst({
+        where: {
+          fechaCorte: { gte: startOfToday, lte: endOfToday }
+        }
+      }),
+      prisma.corteDiario.count()
+    ]);
+
+    if (
+      corteHoy &&
+      corteHoy.totalAtb === stockActAtb &&
+      corteHoy.totalBtp === stockActBtp &&
+      totalCount >= 30
+    ) {
+      // Los cortes diarios ya están al día y sincronizados con la realidad
+      return;
+    }
+
+    // 4. Si falta el corte de hoy o hay desincronización, calcular la evolución histórica completa
     const movimientos = await prisma.movimientoInventario.findMany({
       include: { tipoPapel: true },
       orderBy: { fechaMovimiento: 'asc' }
@@ -110,6 +120,13 @@ export async function asegurarCortesDiarios() {
     let runningAtb = stockActAtb;
     let runningBtp = stockActBtp;
 
+    const cortesToCreate: Array<{
+      fechaCorte: Date;
+      totalAtb: number;
+      totalBtp: number;
+      creadoPor: string;
+    }> = [];
+
     // Generar los últimos 45 días continuos de cortes diarios terminando en HOY (Cancún)
     for (let offset = 0; offset <= 45; offset++) {
       // Fecha en UTC medio día para garantizar que no haya desplazamiento de día calendario
@@ -119,16 +136,11 @@ export async function asegurarCortesDiarios() {
       const keyD = String(targetDate.getUTCDate()).padStart(2, '0');
       const key = `${keyY}-${keyM}-${keyD}`;
 
-      const atbGuardar = runningAtb;
-      const btpGuardar = runningBtp;
-
-      await prisma.corteDiario.create({
-        data: {
-          fechaCorte: targetDate,
-          totalAtb: atbGuardar,
-          totalBtp: btpGuardar,
-          creadoPor: 'SISTEMA_AUTO'
-        }
+      cortesToCreate.push({
+        fechaCorte: targetDate,
+        totalAtb: runningAtb,
+        totalBtp: runningBtp,
+        creadoPor: 'SISTEMA_AUTO'
       });
 
       // Calcular el inventario al cierre del día anterior revirtiendo los movimientos de este día
@@ -146,6 +158,24 @@ export async function asegurarCortesDiarios() {
       runningAtb = Math.max(18, Math.min(65, runningAtb));
       runningBtp = Math.max(140, Math.min(260, runningBtp));
     }
+
+    // Reemplazo atómico en una sola transacción para evitar que peticiones concurrentes vean la tabla vacía
+    await prisma.$transaction([
+      prisma.corteDiario.deleteMany({
+        where: {
+          OR: [
+            { creadoPor: 'SISTEMA_AUTO' },
+            { totalAtb: { gt: 250 } },
+            { totalBtp: { gt: 600 } },
+            { totalAtb: { lte: 0 } },
+            { totalBtp: { lte: 0 } }
+          ]
+        }
+      }),
+      prisma.corteDiario.createMany({
+        data: cortesToCreate
+      })
+    ]);
 
   } catch (error) {
     console.error('Error al asegurar cortes diarios:', error);
