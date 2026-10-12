@@ -230,7 +230,7 @@ const Reportes: React.FC = () => {
           { header: 'Generado Por', dataKey: 'creadoPor' }
         ];
         data = data.map((d: any) => ({
-          fechaFormat: format(new Date(d.fechaCorte), 'dd/MM/yyyy') + ' 23:50 hrs',
+          fechaFormat: d.fechaFormat || (format(new Date(d.fechaCorte), 'dd/MM/yyyy') + ' 23:50 hrs'),
           totalStock: d.totalStock,
           totalAtb: d.totalAtb,
           totalBtp: d.totalBtp,

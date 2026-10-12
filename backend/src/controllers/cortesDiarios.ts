@@ -43,14 +43,24 @@ export const getUltimos3CortesDiarios = async (req: Request, res: Response) => {
       orderBy: { fechaCorte: 'desc' }
     });
 
-    const dataFormatted = cortes.map(c => ({
-      id: c.id,
-      fechaCorte: c.fechaCorte,
-      totalStock: c.totalAtb + c.totalBtp,
-      totalAtb: c.totalAtb,
-      totalBtp: c.totalBtp,
-      creadoPor: c.creadoPor
-    }));
+    const dataFormatted = cortes.map(c => {
+      const f = new Date(c.fechaCorte);
+      const y = f.getUTCFullYear();
+      const m = String(f.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(f.getUTCDate()).padStart(2, '0');
+
+      return {
+        id: c.id,
+        fechaCorte: c.fechaCorte,
+        fechaFormatted: `${d}/${m}/${y}`,
+        fechaCorteFormato: `${d}/${m}/${y} 23:50 hrs`,
+        fechaFormat: `${d}/${m}/${y} 23:50 hrs`,
+        totalStock: c.totalAtb + c.totalBtp,
+        totalAtb: c.totalAtb,
+        totalBtp: c.totalBtp,
+        creadoPor: c.creadoPor
+      };
+    });
 
     res.json({ success: true, data: dataFormatted });
   } catch (error) {
@@ -82,14 +92,24 @@ export const getCortesDiariosReporte = async (req: Request, res: Response) => {
       orderBy: { fechaCorte: 'desc' }
     });
 
-    const dataFormatted = cortes.map(c => ({
-      id: c.id,
-      fechaCorte: c.fechaCorte,
-      totalStock: c.totalAtb + c.totalBtp,
-      totalAtb: c.totalAtb,
-      totalBtp: c.totalBtp,
-      creadoPor: c.creadoPor || 'SISTEMA'
-    }));
+    const dataFormatted = cortes.map(c => {
+      const f = new Date(c.fechaCorte);
+      const y = f.getUTCFullYear();
+      const m = String(f.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(f.getUTCDate()).padStart(2, '0');
+
+      return {
+        id: c.id,
+        fechaCorte: c.fechaCorte,
+        fechaFormatted: `${d}/${m}/${y}`,
+        fechaCorteFormato: `${d}/${m}/${y} 23:50 hrs`,
+        fechaFormat: `${d}/${m}/${y} 23:50 hrs`,
+        totalStock: c.totalAtb + c.totalBtp,
+        totalAtb: c.totalAtb,
+        totalBtp: c.totalBtp,
+        creadoPor: c.creadoPor || 'SISTEMA_AUTO'
+      };
+    });
 
     res.json(dataFormatted);
   } catch (error) {

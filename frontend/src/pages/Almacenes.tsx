@@ -379,7 +379,7 @@ const Almacenes: React.FC = () => {
             <div className="card">Sin datos de corte diario.</div>
           ) : (
             cortesDiarios.map((corte, idx) => {
-              const fechaFormatted = format(new Date(corte.fechaCorte), 'dd/MM/yyyy');
+              const fechaFormatted = (corte as any).fechaFormatted || format(new Date(corte.fechaCorte), 'dd/MM/yyyy');
               return (
                 <div 
                   key={corte.id || idx} 
