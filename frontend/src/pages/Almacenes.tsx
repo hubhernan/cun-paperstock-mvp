@@ -93,9 +93,14 @@ const Almacenes: React.FC = () => {
   const [verificacionState, setVerificacionState] = useState<Record<string, 'OK' | 'DISCREPANCIA'>>({});
   const [feedbackMsg, setFeedbackMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
 
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  };
+
   const fetchAlmacenes = async () => {
     try {
-      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes');
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes', getAuthHeaders());
       if (response.data.success) {
         setAlmacenes(response.data.data);
       }
@@ -108,7 +113,7 @@ const Almacenes: React.FC = () => {
 
   const fetchCortesDiarios = async () => {
     try {
-      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/cortes-diarios/ultimos3');
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/cortes-diarios/ultimos3', getAuthHeaders());
       if (response.data.success) {
         setCortesDiarios(response.data.data);
       }
@@ -120,7 +125,7 @@ const Almacenes: React.FC = () => {
   const fetchMovimientos = async () => {
     try {
       setLoadingMovimientos(true);
-      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/movimientos');
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/movimientos', getAuthHeaders());
       if (response.data.success) {
         setMovimientos(response.data.data);
       }
@@ -134,7 +139,7 @@ const Almacenes: React.FC = () => {
   const fetchVerificacionesOK = async () => {
     try {
       setLoadingVerificaciones(true);
-      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes/verificaciones-ok');
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + '/api/almacenes/verificaciones-ok', getAuthHeaders());
       if (response.data.success) {
         setVerificacionesOK(response.data.data);
       }
@@ -160,7 +165,7 @@ const Almacenes: React.FC = () => {
     setEditandoStockId(null);
     fetchVerificacionesOK();
     try {
-      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + `/api/almacenes/${almacen.id}/stock`);
+      const response = await axios.get(((import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000'))) + `/api/almacenes/${almacen.id}/stock`, getAuthHeaders());
       if (response.data.success) {
         setStockDetalle(response.data.data);
       }
@@ -183,7 +188,8 @@ const Almacenes: React.FC = () => {
           tipoPapelId: stockItem.tipoPapelId,
           stockCalculado: stockItem.cantidadActual,
           stockFisico: stockItem.cantidadActual
-        }
+        },
+        getAuthHeaders()
       );
       if (response.data.success) {
         setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'OK' }));
@@ -218,7 +224,8 @@ const Almacenes: React.FC = () => {
           stockCalculado: stockItem.cantidadActual,
           stockFisico: conteoFisico,
           comentarios: comentarioDiscrepancia
-        }
+        },
+        getAuthHeaders()
       );
       if (response.data.success) {
         setVerificacionState(prev => ({ ...prev, [stockItem.id]: 'DISCREPANCIA' }));

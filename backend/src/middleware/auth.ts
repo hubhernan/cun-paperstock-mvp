@@ -21,10 +21,18 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     if (err) return res.status(403).json({ success: false, message: 'Token inválido o expirado' });
 
     try {
-      const user = await prisma.usuario.findUnique({
+      let user = await prisma.usuario.findUnique({
         where: { id: decoded.id },
         include: { rol: true }
       });
+
+      if (!user && decoded.email) {
+        user = await prisma.usuario.findUnique({
+          where: { email: decoded.email },
+          include: { rol: true }
+        });
+      }
+
       if (!user || !user.activo) {
         return res.status(403).json({ success: false, message: 'Usuario no encontrado o inactivo' });
       }
