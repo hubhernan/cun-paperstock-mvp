@@ -11,7 +11,7 @@ const parseFechaInicio = (str: any): Date | undefined => {
     const y = parts[0] ?? 2026;
     const m = parts[1] ?? 1;
     const d = parts[2] ?? 1;
-    return new Date(y, m - 1, d, 0, 0, 0, 0);
+    return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
   }
   const d = new Date(str);
   return isNaN(d.getTime()) ? undefined : d;
@@ -24,7 +24,7 @@ const parseFechaFin = (str: any): Date | undefined => {
     const y = parts[0] ?? 2026;
     const m = parts[1] ?? 1;
     const d = parts[2] ?? 1;
-    return new Date(y, m - 1, d, 23, 59, 59, 999);
+    return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
   }
   const d = new Date(str);
   if (isNaN(d.getTime())) return undefined;
